@@ -3,6 +3,7 @@ import StrategicGlobe from "./components/StrategicGlobe";
 import WorldMonitorGlobe from "./components/WorldMonitorGlobe";
 import WorldMonitorMap from "./components/WorldMonitorMap";
 import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
+import { useSentinelState } from "./hooks/useSentinelState";
 import {
   AI_INSIGHT_BRIEF,
   CHAT_BRIEFING_MODULES,
@@ -932,6 +933,7 @@ function ChatSurface({ onBack, onOpenConsole }) {
 }
 
 function App() {
+  const { worldState, loading, handleAdvance, handleReset } = useSentinelState();
   const [surface, setSurface] = useState(() => (typeof window === "undefined" ? "landing" : getSurfaceFromHash()));
   const [mapMode, setMapMode] = useState("flat");
   const [incident, setIncident] = useState(INITIAL_INCIDENT);
@@ -962,41 +964,70 @@ function App() {
     );
   }, []);
 
-  const consoleModel = useMemo(
-    () => buildConsoleModel(incident, selectedResponsePath),
-    [incident, selectedResponsePath],
+  const consoleModel = useMemo(() => {
+    const base = buildConsoleModel(incident, selectedResponsePath);
+    if (!worldState) return base;
+    return {
+      ...base,
+      brief: worldState?.reasoning?.assessment_summary || base.brief,
+      timeline: worldState?.reasoning?.projected_outcome ? [{ window: "Next 24 hours", text: worldState.reasoning.projected_outcome }] : base.timeline,
+      consequenceHighlights: worldState?.reasoning?.recommendations?.length > 0 ? worldState.reasoning.recommendations.map(r => r.action || r.rationale) : base.consequenceHighlights,
+      trust: {
+        ...base.trust,
+        assumptions: worldState?.reasoning?.assumptions?.length > 0 ? worldState.reasoning.assumptions : base.trust.assumptions,
+        weakEvidence: worldState?.reasoning?.key_risks?.length > 0 ? worldState.reasoning.key_risks : base.trust.weakEvidence,
+      },
+      scores: [
+        { label: "Threat score", value: worldState?.scorecard?.threat_score || 0, tone: "rose" },
+        { label: "Readiness", value: worldState?.scorecard?.readiness_score || 0, tone: "cyan" },
+        { label: "Escalation risk", value: worldState?.scorecard?.escalation_risk || 0, tone: "amber" },
+        { label: "System confidence", value: worldState?.scorecard?.confidence_score || 0, tone: "emerald" },
+      ]
+    };
+  }, [incident, selectedResponsePath, worldState]);
+
+  const activeThreat = worldState?.threats?.[0];
+  const incidentPoint = useMemo(
+    () => ({
+      lat: activeThreat?.latitude || incident.lat || 34.5261,
+      lon: activeThreat?.longitude || incident.lon || 74.2612,
+    }),
+    [incident, activeThreat],
   );
+
+  const mergedMarkers = useMemo(() => {
+    if (!worldState) return GLOBE_MARKERS;
+    const units = (worldState.units || []).map(u => ({
+      id: u.unit_id, label: `${u.name} (${u.status})`, lat: u.latitude, lon: u.longitude, color: "#60a5fa", scale: 0.95
+    }));
+    const threats = (worldState.threats || []).map(t => ({
+      id: t.threat_id, label: t.label, lat: t.latitude, lon: t.longitude, color: "#fb7185", scale: 1.15
+    }));
+    return [...units, ...threats];
+  }, [worldState]);
 
   const globeArcs = useMemo(
     () => [
       {
         id: "console-arc-1",
-        start: { lat: incident.lat || 34.5261, lon: incident.lon || 74.2612 },
+        start: incidentPoint,
         end: { lat: 28.6139, lon: 77.209 },
         color: "#fb7185",
       },
       {
         id: "console-arc-2",
-        start: { lat: incident.lat || 34.5261, lon: incident.lon || 74.2612 },
+        start: incidentPoint,
         end: { lat: 31.1048, lon: 77.1734 },
         color: "#22d3ee",
       },
       {
         id: "console-arc-3",
-        start: { lat: incident.lat || 34.5261, lon: incident.lon || 74.2612 },
+        start: incidentPoint,
         end: { lat: 19.076, lon: 72.8777 },
         color: "#34d399",
       },
     ],
-    [incident.lat, incident.lon],
-  );
-
-  const incidentPoint = useMemo(
-    () => ({
-      lat: incident.lat || 34.5261,
-      lon: incident.lon || 74.2612,
-    }),
-    [incident.lat, incident.lon],
+    [incidentPoint],
   );
 
   if (surface === "landing") {
@@ -1033,8 +1064,29 @@ function App() {
           <div>
             <p className="text-[0.68rem] uppercase tracking-[0.34em] text-cyan-300/80">SENTINEL Strategic Console</p>
             <h1 className="mt-2 text-2xl font-semibold text-white">Incident-to-decision intelligence surface</h1>
+            {worldState && (
+              <p className="mt-2 text-sm font-medium text-slate-300 border-l-[3px] border-cyan-400 pl-3">
+                Phase {worldState.current_phase_index} / {worldState.total_phases} &mdash; <span className="text-white">{worldState.phase_title}</span>
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={loading}
+              className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-300/35 hover:text-white disabled:opacity-50"
+            >
+              Reset Scenario
+            </button>
+            <button
+              type="button"
+              onClick={handleAdvance}
+              disabled={loading || (worldState && worldState.current_phase_index >= worldState.total_phases - 1)}
+              className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
+            >
+              Next System Injection
+            </button>
             <button
               type="button"
               onClick={() => navigate("landing")}
@@ -1044,17 +1096,10 @@ function App() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("login")}
-              className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-300/35 hover:text-white"
-            >
-              Login
-            </button>
-            <button
-              type="button"
               onClick={() => navigate("chat")}
-              className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+              className="rounded-full border border-cyan-400/20 bg-slate-900 px-5 py-2 text-sm text-cyan-100 transition hover:bg-slate-800"
             >
-              Open prompt assistant
+              AI Assistant
             </button>
           </div>
         </div>
@@ -1162,10 +1207,10 @@ function App() {
 
           <div className="space-y-4">
             <StrategicGlobe
-              title={incident.title}
+              title={activeThreat ? activeThreat.type : incident.title}
               subtitle="The globe acts as the main analysis surface: attacked site, risk corridors, and the consequence spread of the chosen response path."
-              incidentPoint={{ lat: incident.lat || 34.5261, lon: incident.lon || 74.2612 }}
-              markers={GLOBE_MARKERS}
+              incidentPoint={incidentPoint}
+              markers={mergedMarkers}
               arcs={globeArcs}
             />
 
