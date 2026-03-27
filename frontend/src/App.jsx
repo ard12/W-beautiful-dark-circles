@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import StrategicGlobe from "./components/StrategicGlobe";
 import WorldMonitorGlobe from "./components/WorldMonitorGlobe";
 import WorldMonitorMap from "./components/WorldMonitorMap";
-import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
+import { getPromptPlaceholders, executePrompt } from "./api/client";
 import {
   AI_INSIGHT_BRIEF,
   CHAT_BRIEFING_MODULES,
@@ -885,6 +885,117 @@ function LoginSurface({ onLogin, onBack }) {
 }
 
 function ChatSurface({ onBack, onOpenConsole }) {
+  const [placeholders, setPlaceholders] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [currentStep, setCurrentStep] = useState(0);
+  const [draft, setDraft] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [report, setReport] = useState(null);
+  const [error, setError] = useState(null);
+  const chatEndRef = useRef(null);
+
+  // Fetch placeholders from backend on mount
+  useEffect(() => {
+    getPromptPlaceholders()
+      .then((data) => {
+        const ph = data.placeholders || [];
+        setPlaceholders(ph);
+        if (ph.length > 0) {
+          setMessages([
+            { role: "assistant", text: "I'll walk you through the incident details one step at a time. Your answers will fill the backend prompt placeholders for AI analysis." },
+            { role: "assistant", text: ph[0].question },
+          ]);
+        }
+      })
+      .catch(() => {
+        // Fallback if backend is not running
+        const fallback = [
+          { key: "attacked_site", label: "Attacked site", question: "What site or installation was attacked?", placeholder: "Northern Radar Relay" },
+          { key: "location", label: "Location", question: "Where did the incident occur?", placeholder: "Kupwara sector" },
+          { key: "owner_country", label: "Owner country", question: "Which country owns or controls the affected site?", placeholder: "India" },
+          { key: "actor", label: "Actor", question: "Who is the suspected actor or adversary?", placeholder: "Pakistan-backed proxy network" },
+          { key: "attack_type", label: "Attack type", question: "What was the mode of attack?", placeholder: "Drone attack", options: ["Missile strike", "Drone attack", "Militant raid", "Cyber disruption", "Bombing", "Artillery exchange"] },
+          { key: "severity", label: "Severity (0-100)", question: "How severe was the incident on a 0-100 scale?", placeholder: "74" },
+          { key: "description", label: "Description", question: "Give a short operational description of the incident.", placeholder: "Forward radar relay degraded after a stand-off drone strike." },
+        ];
+        setPlaceholders(fallback);
+        setMessages([
+          { role: "assistant", text: "I'll walk you through the incident details one step at a time. Your answers will fill the backend prompt placeholders for AI analysis." },
+          { role: "assistant", text: fallback[0].question },
+        ]);
+      });
+  }, []);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, report]);
+
+  const currentPlaceholder = placeholders[currentStep] || null;
+  const allFilled = placeholders.length > 0 && currentStep >= placeholders.length;
+
+  function handleSubmitAnswer(value) {
+    if (!value.trim() || !currentPlaceholder) return;
+    const key = currentPlaceholder.key;
+    const newAnswers = { ...answers, [key]: key === "severity" ? Number(value) || 0 : value };
+    setAnswers(newAnswers);
+
+    const newMessages = [
+      ...messages,
+      { role: "user", text: value },
+    ];
+
+    const nextIndex = currentStep + 1;
+    setCurrentStep(nextIndex);
+
+    if (nextIndex < placeholders.length) {
+      newMessages.push({ role: "assistant", text: placeholders[nextIndex].question });
+    } else {
+      newMessages.push({ role: "assistant", text: "All placeholders filled. Click \"Generate Report\" to run AI analysis on this incident." });
+    }
+    setMessages(newMessages);
+    setDraft("");
+  }
+
+  function handleSelectOption(option) {
+    handleSubmitAnswer(option);
+  }
+
+  async function handleGenerateReport() {
+    setIsLoading(true);
+    setError(null);
+    setMessages((prev) => [...prev, { role: "assistant", text: "Running AI threat assessment and SITREP generation…" }]);
+    try {
+      const result = await executePrompt(answers);
+      if (result.detail) {
+        throw new Error(typeof result.detail === "string" ? result.detail : JSON.stringify(result.detail));
+      }
+      setReport(result);
+      setMessages((prev) => [...prev, { role: "assistant", text: "Analysis complete. The full report is shown below." }]);
+    } catch (err) {
+      setError(err.message || "Failed to generate report. Make sure the backend is running.");
+      setMessages((prev) => [...prev, { role: "assistant", text: `Error: ${err.message || "Failed to generate report. Is the backend running?"}` }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleFormSubmit(e) {
+    e.preventDefault();
+    handleSubmitAnswer(draft);
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmitAnswer(draft);
+    }
+  }
+
+  // Determine which placeholder keys are filled
+  const filledKeys = new Set(Object.keys(answers));
+
   return (
     <div className="wm-shell wm-shell--chat">
       <header className="header">
@@ -907,10 +1018,41 @@ function ChatSurface({ onBack, onOpenConsole }) {
             <p className="wm-chat-card__eyebrow">Copilot mode</p>
             <h2>Prompt-driven incident workflow</h2>
             <p>
-              The chat now lives on its own page and acts as the operator surface for filling backend prompt placeholders before execution.
+              Answer the questions below to fill backend prompt placeholders. Once complete, generate an AI analysis report.
             </p>
           </div>
-          {CHAT_BRIEFING_MODULES.map((module) => (
+
+          {/* Progress indicator */}
+          <div className="wm-chat-card">
+            <p className="wm-chat-card__eyebrow">Progress</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+              <div style={{ flex: 1, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)" }}>
+                <div style={{ width: `${placeholders.length ? (Math.min(currentStep, placeholders.length) / placeholders.length) * 100 : 0}%`, height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #22d3ee, #06b6d4)", transition: "width 0.4s ease" }} />
+              </div>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{Math.min(currentStep, placeholders.length)}/{placeholders.length}</span>
+            </div>
+          </div>
+
+          {/* Placeholder chips — show filled state */}
+          <div className="wm-chat-card">
+            <p className="wm-chat-card__eyebrow">Prompt placeholders</p>
+            <div className="wm-chat-chip-list">
+              {placeholders.map((ph) => (
+                <span
+                  key={ph.key}
+                  className="wm-chat-chip"
+                  style={{
+                    borderColor: filledKeys.has(ph.key) ? "rgba(34,211,238,0.5)" : undefined,
+                    background: filledKeys.has(ph.key) ? "rgba(34,211,238,0.1)" : undefined,
+                  }}
+                >
+                  {filledKeys.has(ph.key) ? "✓ " : ""}{ph.key}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {CHAT_BRIEFING_MODULES.filter((m) => m.title !== "Prompt placeholders").map((module) => (
             <div key={module.title} className="wm-chat-card">
               <p className="wm-chat-card__eyebrow">{module.title}</p>
               <div className="wm-chat-chip-list">
@@ -923,10 +1065,237 @@ function ChatSurface({ onBack, onOpenConsole }) {
             </div>
           ))}
         </aside>
-        <main className="wm-chat-main">
-          <AnimatedAIChat />
+
+        <main className="wm-chat-main" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          {/* Chat messages */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                style={{
+                  maxWidth: "85%",
+                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                  padding: "12px 16px",
+                  borderRadius: 16,
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  ...(msg.role === "assistant"
+                    ? { border: "1px solid rgba(34,211,238,0.15)", background: "rgba(15,23,42,0.8)", color: "rgba(226,232,240,0.9)" }
+                    : { border: "1px solid rgba(251,146,60,0.25)", background: "rgba(251,146,60,0.1)", color: "rgba(255,237,213,0.95)" }),
+                }}
+              >
+                {msg.text}
+              </div>
+            ))}
+
+            {/* Option buttons (for attack_type etc.) */}
+            {currentPlaceholder?.options && !allFilled && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+                {currentPlaceholder.options.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => handleSelectOption(opt)}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 20,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "rgba(15,23,42,0.7)",
+                      color: "rgba(203,213,225,0.9)",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(34,211,238,0.4)"; e.currentTarget.style.background = "rgba(34,211,238,0.08)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "rgba(15,23,42,0.7)"; }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Loading spinner */}
+            {isLoading && (
+              <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 16, border: "1px solid rgba(34,211,238,0.15)", background: "rgba(15,23,42,0.8)" }}>
+                <div style={{ width: 20, height: 20, border: "2px solid rgba(34,211,238,0.3)", borderTopColor: "#22d3ee", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                <span style={{ fontSize: 14, color: "rgba(226,232,240,0.7)" }}>SENTINEL is thinking…</span>
+              </div>
+            )}
+
+            {/* Generate button */}
+            {allFilled && !report && !isLoading && (
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleGenerateReport}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: 24,
+                    border: "none",
+                    background: "linear-gradient(135deg, #22d3ee, #06b6d4)",
+                    color: "#0f172a",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    boxShadow: "0 0 30px rgba(34,211,238,0.25)",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  ⚡ Generate Report
+                </button>
+              </div>
+            )}
+
+            {/* Report display */}
+            {report && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 16, width: "100%" }}>
+
+                {/* Scores */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+                  {Object.entries(report.scores || {}).map(([key, val]) => {
+                    const tones = {
+                      threat_score: { bg: "rgba(244,63,94,0.12)", border: "rgba(244,63,94,0.25)", text: "#fda4af" },
+                      readiness_score: { bg: "rgba(34,211,238,0.12)", border: "rgba(34,211,238,0.25)", text: "#a5f3fc" },
+                      escalation_risk: { bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.25)", text: "#fde68a" },
+                      confidence_score: { bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.25)", text: "#c4b5fd" },
+                    };
+                    const t = tones[key] || tones.confidence_score;
+                    return (
+                      <div key={key} style={{ borderRadius: 16, border: `1px solid ${t.border}`, background: t.bg, padding: "16px 14px" }}>
+                        <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: t.text, opacity: 0.8 }}>{key.replace(/_/g, " ")}</div>
+                        <div style={{ fontSize: 28, fontWeight: 600, color: t.text, marginTop: 8 }}>{typeof val === "number" ? val.toFixed(1) : val}</div>
+                        <div style={{ fontSize: 11, color: t.text, opacity: 0.6 }}>/100</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Assessment */}
+                {report.reasoning && (
+                  <div style={{ borderRadius: 20, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(15,23,42,0.7)", padding: 20 }}>
+                    <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(34,211,238,0.7)", marginBottom: 12 }}>Threat Assessment</div>
+                    <p style={{ fontSize: 14, lineHeight: 1.7, color: "rgba(226,232,240,0.9)" }}>{report.reasoning.assessment_summary}</p>
+
+                    {report.reasoning.key_risks?.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(244,63,94,0.7)", marginBottom: 8 }}>Key Risks</div>
+                        {report.reasoning.key_risks.map((risk, i) => (
+                          <div key={i} style={{ borderRadius: 12, border: "1px solid rgba(244,63,94,0.15)", background: "rgba(244,63,94,0.06)", padding: "10px 14px", marginBottom: 6, fontSize: 13, color: "rgba(253,164,175,0.9)" }}>{risk}</div>
+                        ))}
+                      </div>
+                    )}
+
+                    {report.reasoning.recommendations?.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(34,211,238,0.7)", marginBottom: 8 }}>Recommendations</div>
+                        {report.reasoning.recommendations.map((rec, i) => (
+                          <div key={i} style={{ borderRadius: 12, border: "1px solid rgba(34,211,238,0.15)", background: "rgba(34,211,238,0.06)", padding: "12px 14px", marginBottom: 8 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: 14, fontWeight: 500, color: "rgba(165,243,252,0.9)" }}>{rec.action}</span>
+                              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", color: "rgba(34,211,238,0.8)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{rec.priority}</span>
+                            </div>
+                            <p style={{ fontSize: 12, color: "rgba(203,213,225,0.7)", marginTop: 6 }}>{rec.rationale}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(52,211,153,0.7)", marginBottom: 8 }}>Projected Outcome</div>
+                      <p style={{ fontSize: 13, color: "rgba(167,243,208,0.85)", lineHeight: 1.6 }}>{report.reasoning.projected_outcome}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* SITREP */}
+                {report.sitrep && (
+                  <div style={{ borderRadius: 20, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(15,23,42,0.7)", padding: 20 }}>
+                    <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(34,211,238,0.7)", marginBottom: 12 }}>SITREP</div>
+                    {["situation", "threats", "friendly_status", "recommended_action", "projected_outlook"].map((field) => (
+                      report.sitrep[field] ? (
+                        <div key={field} style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(148,163,184,0.6)", marginBottom: 4 }}>{field.replace(/_/g, " ")}</div>
+                          <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(226,232,240,0.85)" }}>{report.sitrep[field]}</p>
+                        </div>
+                      ) : null
+                    ))}
+                  </div>
+                )}
+
+                {/* View in console button */}
+                <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={onOpenConsole}
+                    style={{
+                      padding: "10px 24px",
+                      borderRadius: 20,
+                      border: "1px solid rgba(34,211,238,0.3)",
+                      background: "rgba(34,211,238,0.08)",
+                      color: "#a5f3fc",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    Open Strategic Console →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input area */}
+          {!allFilled && currentPlaceholder && !currentPlaceholder.options && (
+            <form onSubmit={handleFormSubmit} style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "16px 24px", display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={currentPlaceholder.placeholder || "Type your answer…"}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  borderRadius: 16,
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "rgba(15,23,42,0.8)",
+                  color: "#e2e8f0",
+                  fontSize: 14,
+                  outline: "none",
+                  transition: "border 0.2s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.4)")}
+                onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={!draft.trim()}
+                style={{
+                  padding: "12px 20px",
+                  borderRadius: 16,
+                  border: "none",
+                  background: draft.trim() ? "#22d3ee" : "rgba(255,255,255,0.05)",
+                  color: draft.trim() ? "#0f172a" : "rgba(255,255,255,0.3)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: draft.trim() ? "pointer" : "not-allowed",
+                  transition: "all 0.2s",
+                }}
+              >
+                Send
+              </button>
+            </form>
+          )}
         </main>
       </div>
+
+      {/* Spinner keyframe animation */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

@@ -95,3 +95,19 @@ class WorldState(BaseModel):
     reasoning: Optional[ReasoningOutput] = None
     approved_action_ids: List[str] = []
     event_log: List[str] = []
+
+
+class IncidentInput(BaseModel):
+    attacked_site: str
+    location: str
+    owner_country: str
+    actor: str
+    attack_type: str
+    severity: int = Field(ge=0, le=100)
+    description: str
+
+
+class FullReportOutput(BaseModel):
+    reasoning: ReasoningOutput
+    sitrep: SitrepOutput
+    scores: dict
