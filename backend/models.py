@@ -91,6 +91,7 @@ class WorldState(BaseModel):
     threats: List[ThreatState]
     alerts: List[AlertState]
     scorecard: ScoreCard
+    total_phases: int = 0
     reasoning: Optional[ReasoningOutput] = None
     approved_action_ids: List[str] = []
     event_log: List[str] = []

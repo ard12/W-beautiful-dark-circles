@@ -10,7 +10,7 @@
 Lock these first (human decision):
 
 - [ ] Schema shapes in `models.py` (finalized)
-- [ ] API route surface (6 routes — see IMPLEMENTATION_SPEC.md §6)
+- [ ] API route surface (7 routes — see IMPLEMENTATION_SPEC.md §6)
 - [ ] Scenario JSON structure (see IMPLEMENTATION_SPEC.md §3)
 - [ ] Frontend layout (3-column — see IMPLEMENTATION_SPEC.md §10)
 - [ ] Color system (see IMPLEMENTATION_SPEC.md §10)
@@ -72,7 +72,7 @@ REQUIREMENTS:
 
 CONSTRAINTS:
 - Python 3.11+, FastAPI, Pydantic v2, uvicorn
-- No database — all state in memory
+- No custom database — in-memory state for runtime; Supabase handles auth and optional persistence
 - No Docker
 - CORS enabled for http://localhost:5173
 - Load .env with python-dotenv
@@ -164,9 +164,16 @@ Build a React dashboard for SENTINEL, a military command system.
 
 REQUIREMENTS:
 
-1. Setup: React 18 + Vite + TailwindCSS + react-leaflet
+1. Setup: React 18 + Vite + TailwindCSS + react-leaflet + @supabase/supabase-js
 
-2. App.jsx — main layout:
+2. The frontend has THREE surfaces:
+   a. Landing page — premium product intro (problem framing, value proposition, "Enter SENTINEL" CTA)
+   b. Login page — Supabase Auth (email/password or magic link, polished dark theme)
+   c. Dashboard — the core 3-column operational interface
+
+   Use React Router for navigation: / (landing), /login, /app (dashboard).
+
+3. App.jsx — main layout (dashboard surface):
    - Dark background (#0a0e1a)
    - Header bar at top
    - Three columns below: left (20%), center (50%), right (30%)
