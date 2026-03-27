@@ -129,27 +129,27 @@ export function AnimatedAIChat() {
   const commandSuggestions: CommandSuggestion[] = [
     {
       icon: <ImageIcon className="h-4 w-4" />,
-      label: "Clone UI",
-      description: "Generate a UI from a screenshot",
-      prefix: "/clone",
+      label: "Incident Intake",
+      description: "Capture attack details into the prompt schema",
+      prefix: "/incident",
     },
     {
       icon: <PenTool className="h-4 w-4" />,
-      label: "Import Figma",
-      description: "Import a design from Figma",
-      prefix: "/figma",
+      label: "Intent Analysis",
+      description: "Ask why the site was attacked and what it signals",
+      prefix: "/intent",
     },
     {
       icon: <MonitorIcon className="h-4 w-4" />,
-      label: "Create Page",
-      description: "Generate a new web page",
-      prefix: "/page",
+      label: "Retaliation Scope",
+      description: "Model likely implications of a response path",
+      prefix: "/retaliation",
     },
     {
       icon: <Sparkles className="h-4 w-4" />,
-      label: "Improve",
-      description: "Improve existing UI design",
-      prefix: "/improve",
+      label: "Executive Brief",
+      description: "Generate a concise command brief",
+      prefix: "/brief",
     },
   ];
 
@@ -276,7 +276,7 @@ export function AnimatedAIChat() {
               className="inline-block"
             >
               <h1 className="bg-gradient-to-r from-white/90 to-white/40 bg-clip-text pb-1 text-3xl font-medium tracking-tight text-transparent">
-                How can I help today?
+                How should SENTINEL reason about this incident?
               </h1>
               <motion.div
                 className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
@@ -291,7 +291,7 @@ export function AnimatedAIChat() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              Type a command or ask a question
+              Fill the prompt placeholders or ask for a strategic comparison
             </motion.p>
           </div>
 

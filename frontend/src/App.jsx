@@ -1,8 +1,36 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import StrategicGlobe from "./components/StrategicGlobe";
 import WorldMonitorGlobe from "./components/WorldMonitorGlobe";
 import WorldMonitorMap from "./components/WorldMonitorMap";
 import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
+import {
+  AI_INSIGHT_BRIEF,
+  CHAT_BRIEFING_MODULES,
+  COUNTRY_INTELLIGENCE_INDEX,
+  COUNTRY_INTELLIGENCE_SIGNALS,
+  CROSS_STREAM_CORRELATION,
+  DEFAULT_ACTIVE_LAYER_IDS,
+  ENERGY_COMPLEX,
+  FINANCE_RADAR,
+  FORECAST_FILTERS,
+  FORECAST_ITEMS,
+  INTEL_FEED_ITEMS,
+  LIVE_INTELLIGENCE_ITEMS,
+  LIVE_NEWS_FEEDS,
+  LIVE_NEWS_ITEMS,
+  MACRO_STRESS,
+  MAP_LAYER_GROUPS,
+  MAP_STATS,
+  MARKETS_PANEL,
+  METALS_AND_MATERIALS,
+  PREDICTIONS_PANEL,
+  REGIONAL_NEWS_PANELS,
+  STRATEGIC_POSTURE,
+  STRATEGIC_RISK,
+  WEBCAM_TABS,
+  WEBCAM_TILES,
+  WORLD_NEWS_ITEMS,
+} from "./data/monitorData";
 
 const RESPONSE_PATHS = [
   {
@@ -103,57 +131,7 @@ const GLOBE_MARKERS = [
   { id: "north-1", label: "High-risk border sector", lat: 33.7782, lon: 74.0924, color: "#38bdf8", scale: 0.95 },
   { id: "north-2", label: "Logistics corridor", lat: 31.1048, lon: 77.1734, color: "#60a5fa", scale: 0.9 },
   { id: "north-3", label: "Diplomatic attention zone", lat: 28.6139, lon: 77.209, color: "#22d3ee", scale: 1.05 },
-];
-
-const HOMEPAGE_LAYERS = [
-  { icon: "🍎", label: "Iran attacks", enabled: true },
-  { icon: "🛰️", label: "Intel hotspots", enabled: true },
-  { icon: "⚠️", label: "Conflict zones", enabled: true },
-  { icon: "🏛️", label: "Military bases", enabled: true },
-  { icon: "☢️", label: "Nuclear sites", enabled: true },
-  { icon: "△", label: "Gamma irradiators", enabled: false },
-  { icon: "☢", label: "Radiation watch", enabled: false },
-  { icon: "🚀", label: "Spaceports", enabled: false },
-  { icon: "⌇", label: "Undersea cables", enabled: false },
-];
-
-const LIVE_NEWS_FEEDS = ["Bloomberg", "Skynews", "Euronews", "DW", "CNBC", "CNN", "France 24", "Al Arabiya"];
-
-const LIVE_INTEL_ITEMS = [
-  "Pakistan, China hold joint naval exercise Sea Guardian",
-  "Army urges calm during shooting exercise in Gombe State",
-  "Sri Lanka sold its sovereignty to the United States.",
-  "Chinese warship Da Qing arrives in Karachi to join Sea Guardian IV…",
-];
-
-const WEBCAM_TABS = ["Iran attacks", "All", "Mideast", "Europe", "Americas", "Asia", "Space"];
-
-const POSTURE_THEATERS = [
-  { label: "Iran Theater", level: "CRIT", air: 12, sea: 31 },
-  { label: "Taiwan Strait", level: "CRIT", air: 9, sea: 46 },
-  { label: "Baltic Theater", level: "ELEV", air: 5, sea: 18 },
-];
-
-const FORECAST_FILTERS = ["All", "Conflict", "Market", "Supply Chain", "Political", "Military", "Cyber", "Infra"];
-
-const COUNTRY_INSTABILITY = [
-  { country: "Iran", score: 100, breakdown: "U:82 C:100 S:20 I:80" },
-  { country: "Russia", score: 86, breakdown: "U:68 C:0 S:45 I:80" },
-  { country: "Ukraine", score: 70, breakdown: "U:13 C:5 S:10 I:40" },
-  { country: "Israel", score: 70, breakdown: "U:17 C:45 S:40 I:32" },
-  { country: "Brazil", score: 70, breakdown: "U:12 C:0 S:5 I:18" },
-];
-
-const INTEL_FEED_ITEMS = [
-  "Why US strategic nuclear forces must expand after New START",
-  "Donbas-for-peace offer raises fears",
-  "How close is the US to a quagmire in Iran?",
-];
-
-const WORLD_NEWS_ITEMS = [
-  "Iran-backed hackers breach FBI director Kash Patel's personal emails",
-  "Rubio says US expects to finish Iran war within weeks",
-  "2027: PDP will be on the ballot, Tinubu assures members",
+  { id: "north-4", label: "Financial relay", lat: 19.076, lon: 72.8777, color: "#34d399", scale: 0.86 },
 ];
 
 function clamp(value) {
@@ -207,11 +185,6 @@ function buildConsoleModel(incident, selectedPath) {
       "Border vigilance and political messaging will likely matter as much as force movement.",
       "If follow-on pressure emerges, nearby surveillance and logistics sites become the next likely stress points.",
     ],
-    defensiveMeasures: [
-      "Harden adjacent sensing and relay infrastructure.",
-      "Surge ISR and anomaly monitoring around the affected corridor.",
-      "Prepare executive brief and narrative line before follow-on media cycle.",
-    ],
     timeline: [
       { window: "Next 6 hours", text: "Attribution firms up, watch for probing or narrative amplification." },
       { window: "Next 24 hours", text: "Response path choice drives diplomatic and tactical pressure bands." },
@@ -230,21 +203,17 @@ function buildConsoleModel(incident, selectedPath) {
   };
 }
 
-function Section({ eyebrow, title, children, actions }) {
-  return (
-    <section className="sentinel-panel rounded-[28px] border border-white/10 bg-slate-950/70 p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          {eyebrow ? (
-            <p className="text-[0.68rem] uppercase tracking-[0.34em] text-cyan-300/75">{eyebrow}</p>
-          ) : null}
-          <h3 className="mt-2 text-lg font-semibold text-white">{title}</h3>
-        </div>
-        {actions}
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
+function getSurfaceFromHash() {
+  const value = window.location.hash.replace(/^#\//, "");
+  if (value === "login" || value === "console" || value === "chat") {
+    return value;
+  }
+  return "landing";
+}
+
+function surfaceToHash(surface) {
+  if (surface === "landing") return "";
+  return `#/${surface}`;
 }
 
 function useHeaderClock() {
@@ -252,6 +221,10 @@ function useHeaderClock() {
 
   useEffect(() => {
     const formatter = new Intl.DateTimeFormat("en-GB", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -260,14 +233,27 @@ function useHeaderClock() {
     });
 
     const updateClock = () => setClock(formatter.format(new Date()));
-
     updateClock();
-
     const intervalId = window.setInterval(updateClock, 1000);
     return () => window.clearInterval(intervalId);
   }, []);
 
   return clock;
+}
+
+function Section({ eyebrow, title, children, actions }) {
+  return (
+    <section className="sentinel-panel rounded-[28px] border border-white/10 bg-slate-950/70 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          {eyebrow ? <p className="text-[0.68rem] uppercase tracking-[0.34em] text-cyan-300/75">{eyebrow}</p> : null}
+          <h3 className="mt-2 text-lg font-semibold text-white">{title}</h3>
+        </div>
+        {actions}
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
 }
 
 function ScorePill({ score }) {
@@ -291,73 +277,6 @@ function ScorePill({ score }) {
   );
 }
 
-function projectToMap(lat, lon) {
-  return {
-    x: ((lon + 180) / 360) * 100,
-    y: ((90 - lat) / 180) * 100,
-  };
-}
-
-function projectToStyle(lat, lon, extra = {}) {
-  const { x, y } = projectToMap(lat, lon);
-  return {
-    left: `${x}%`,
-    top: `${y}%`,
-    ...extra,
-  };
-}
-
-function WorldMonitorFlatMap({ incidentPoint, markers, arcs }) {
-  return (
-    <div className="wm-flat-map">
-      <div className="wm-flat-map__texture" />
-      <div className="wm-flat-map__vignette" />
-      <div className="wm-flat-map__grid" />
-      <svg className="wm-flat-map__svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        {arcs.map((arc) => {
-          const start = projectToMap(arc.start.lat, arc.start.lon);
-          const end = projectToMap(arc.end.lat, arc.end.lon);
-          const midX = (start.x + end.x) / 2;
-          const midY = Math.min(start.y, end.y) - 12;
-          const path = `M ${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`;
-
-          return <path key={arc.id} d={path} className="wm-flat-map__arc" style={{ stroke: arc.color }} />;
-        })}
-      </svg>
-
-      {incidentPoint ? (
-        <div
-          className="wm-flat-map__marker wm-flat-map__marker--incident"
-          style={projectToStyle(incidentPoint.lat, incidentPoint.lon)}
-        >
-          <span />
-        </div>
-      ) : null}
-
-      {markers.map((marker) => (
-        <div
-          key={marker.id}
-          className="wm-flat-map__marker"
-          style={projectToStyle(marker.lat, marker.lon, { "--marker-color": marker.color })}
-        >
-          <span />
-        </div>
-      ))}
-
-      <div className="wm-flat-map__legend">
-        <div>
-          <span className="wm-flat-map__legend-dot wm-flat-map__legend-dot--incident" />
-          Attacked site
-        </div>
-        <div>
-          <span className="wm-flat-map__legend-dot" />
-          Pressure node
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function LandingPanel({ title, count, children, className = "", actions }) {
   return (
     <article className={`panel ${className}`.trim()}>
@@ -373,16 +292,50 @@ function LandingPanel({ title, count, children, className = "", actions }) {
   );
 }
 
-function LandingScoreRow({ label, value }) {
+function FeedPanel({ title, count, items }) {
   return (
-    <div className="wm-score-row">
-      <div className="wm-score-row__meta">
-        <span>{label}</span>
-        <span>{value}</span>
+    <LandingPanel title={title} count={count}>
+      <div className="wm-feed-stack">
+        {items.map((item) => (
+          <div key={`${title}-${item.headline}`} className="wm-feed-item">
+            <div className="wm-feed-item__tags">
+              {item.tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </div>
+            <p>{item.headline}</p>
+            <small className="wm-feed-item__source">
+              {item.source} <em>{item.age}</em>
+            </small>
+          </div>
+        ))}
       </div>
-      <div className="wm-score-row__track">
-        <div className="wm-score-row__fill" style={{ width: `${value}%` }} />
-      </div>
+    </LandingPanel>
+  );
+}
+
+function SignalSparkline({ values, trend }) {
+  const path = values
+    .map((value, index) => `${index === 0 ? "M" : "L"} ${index * 16} ${44 - value / 2}`)
+    .join(" ");
+
+  return (
+    <svg viewBox="0 0 96 44" className="wm-sparkline">
+      <path d={path} className={`wm-sparkline__path wm-sparkline__path--${trend}`.trim()} />
+    </svg>
+  );
+}
+
+function TopMapStats() {
+  return (
+    <div className="wm-map-stats">
+      {MAP_STATS.map((item) => (
+        <div key={item.label} className="wm-map-stat">
+          <strong>{item.value}</strong>
+          <span>{item.label}</span>
+          <small>{item.detail}</small>
+        </div>
+      ))}
     </div>
   );
 }
@@ -393,13 +346,13 @@ function LandingSurface({
   onOpenAssistant,
   incident,
   incidentPoint,
-  setIncident,
   selectedResponsePath,
-  setSelectedResponsePath,
   consoleModel,
   mapMode,
   setMapMode,
   globeArcs,
+  activeLayerIds,
+  toggleLayer,
 }) {
   const clock = useHeaderClock();
 
@@ -407,7 +360,7 @@ function LandingSurface({
     <div className="wm-shell wm-shell--homepage">
       <div className="wm-promo-bar">
         <div className="wm-promo-pill">PRO</div>
-        <p>Pro is coming — More Signal, Less Noise. More AI Briefings. A geopolitical & equity researcher just for you.</p>
+        <p>Pro is coming — More Signal, Less Noise. More AI Briefings. A geopolitical &amp; equity researcher just for you.</p>
         <button type="button" onClick={onOpenLogin}>
           Reserve your spot +
         </button>
@@ -492,32 +445,44 @@ function LandingSurface({
                   3D
                 </button>
               </div>
-              <button type="button" className="wm-icon-square">
-                ⛶
-              </button>
               <button type="button" className="wm-icon-square" onClick={onOpenAssistant}>
-                ⚙
+                AI
               </button>
             </div>
           </div>
 
           <div className="map-container wm-map-home">
             <div className="wm-map-layer-rail">
-              {HOMEPAGE_LAYERS.map((layer) => (
-                <button key={layer.label} type="button" className={`wm-map-layer ${layer.enabled ? "active" : ""}`.trim()}>
-                  <span className="wm-map-layer__check">{layer.enabled ? "✓" : "○"}</span>
-                  <span className="wm-map-layer__icon">{layer.icon}</span>
-                  <span>{layer.label}</span>
-                </button>
+              {MAP_LAYER_GROUPS.map((group) => (
+                <div key={group.title} className="wm-map-layer-group">
+                  <div className="wm-map-layer-group__title">{group.title}</div>
+                  {group.items.map((layer) => {
+                    const active = activeLayerIds.includes(layer.id);
+                    return (
+                      <button
+                        key={layer.id}
+                        type="button"
+                        className={`wm-map-layer ${active ? "active" : ""}`.trim()}
+                        onClick={() => toggleLayer(layer.id)}
+                      >
+                        <span className="wm-map-layer__check">{active ? "✓" : "○"}</span>
+                        <span className="wm-map-layer__icon">{layer.icon}</span>
+                        <span>{layer.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               ))}
-              <div className="wm-map-layer-rail__credit">© Elie Habib • Someone™</div>
+              <div className="wm-map-layer-rail__credit">© Elie Habib • frontend adaptation</div>
             </div>
 
             {mapMode === "globe" ? (
               <WorldMonitorGlobe incidentPoint={incidentPoint} markers={GLOBE_MARKERS} arcs={globeArcs} />
             ) : (
-              <WorldMonitorMap incidentPoint={incidentPoint} markers={GLOBE_MARKERS} />
+              <WorldMonitorMap incidentPoint={incidentPoint} markers={GLOBE_MARKERS} activeLayerIds={activeLayerIds} />
             )}
+
+            <TopMapStats />
 
             <div className="wm-map-legend-bar">
               <span>Legend</span>
@@ -543,18 +508,18 @@ function LandingSurface({
             </div>
             <div className="wm-live-news-hero">
               <div className="wm-live-news-hero__caption">
-                <span>Sounds like a great Saturday.</span>
-                <strong>TIM.</strong>
+                <span>{LIVE_NEWS_ITEMS[0].headline}</span>
+                <strong>{LIVE_NEWS_ITEMS[0].source.toUpperCase()}</strong>
               </div>
             </div>
             <div className="wm-live-intel-list">
-              {LIVE_INTEL_ITEMS.map((item, index) => (
-                <div key={item} className="wm-live-intel-item">
+              {LIVE_INTELLIGENCE_ITEMS.map((item) => (
+                <div key={item.headline} className="wm-live-intel-item">
                   <div>
-                    <strong>{["pakobserver.net", "punchng.com", "slguardian.org", "pakobserver.net"][index]}</strong>
-                    <p>{item}</p>
+                    <strong>{item.source}</strong>
+                    <p>{item.headline}</p>
                   </div>
-                  <span>{index + 1}d ago</span>
+                  <span>{item.age}</span>
                 </div>
               ))}
             </div>
@@ -569,7 +534,7 @@ function LandingSurface({
               ))}
             </div>
             <div className="wm-webcam-grid">
-              {["Tehran", "Tel Aviv", "Jerusalem", "Middle East", "Dubai", "Space"].map((tile, index) => (
+              {WEBCAM_TILES.map((tile, index) => (
                 <div key={tile} className={`wm-webcam-tile wm-webcam-tile--${index + 1}`.trim()}>
                   <span>{tile}</span>
                 </div>
@@ -579,15 +544,17 @@ function LandingSurface({
 
           <LandingPanel title="AI Insights" count="LIVE" className="wm-home-panel wm-home-panel--insights">
             <div className="wm-insights-card">
-              <div className="wm-insights-card__eyebrow">World Brief</div>
-              <p>
-                US Senator Rubio stated that the United States anticipates concluding the war with Iran within
-                the next couple of weeks. This comes as the Strait of Hormuz remains blocked despite renewed
-                diplomatic signals.
-              </p>
+              <div className="wm-insights-card__eyebrow">{AI_INSIGHT_BRIEF.title}</div>
+              <p>{AI_INSIGHT_BRIEF.text}</p>
+              <div className="wm-inline-note">
+                <strong>Incident</strong>
+                <span>
+                  {incident.title}: {consoleModel.primaryIntent}
+                </span>
+              </div>
             </div>
             <div className="wm-posture-list">
-              {POSTURE_THEATERS.map((item) => (
+              {STRATEGIC_POSTURE.map((item) => (
                 <div key={item.label} className="wm-posture-item">
                   <div className="wm-posture-item__header">
                     <strong>{item.label}</strong>
@@ -596,6 +563,7 @@ function LandingSurface({
                   <div className="wm-posture-item__meta">
                     <span>AIR {item.air}</span>
                     <span>SEA {item.sea}</span>
+                    <span>{item.direction}</span>
                   </div>
                 </div>
               ))}
@@ -603,7 +571,7 @@ function LandingSurface({
           </LandingPanel>
         </section>
 
-        <section className="wm-secondary-grid">
+        <section className="wm-dashboard-grid">
           <LandingPanel title="AI Forecasts" count="LIVE">
             <div className="wm-pill-filter-row">
               {FORECAST_FILTERS.map((filter, index) => (
@@ -620,21 +588,24 @@ function LandingSurface({
               <em>90%</em>
             </div>
             <div className="wm-live-intel-list wm-live-intel-list--compact">
-              {LIVE_INTEL_ITEMS.slice(0, 3).map((item, index) => (
-                <div key={item} className="wm-live-intel-item">
+              {FORECAST_ITEMS.map((item) => (
+                <div key={item.headline} className="wm-live-intel-item">
                   <div>
-                    <strong>{["Military Activity", "Cyber Threats", "Supply Strain"][index]}</strong>
-                    <p>{item}</p>
+                    <strong>{item.channel}</strong>
+                    <p>{item.headline}</p>
                   </div>
-                  <span>1d ago</span>
+                  <span>{item.age}</span>
                 </div>
               ))}
             </div>
           </LandingPanel>
 
-          <LandingPanel title="Country Instability" count="">
+          <LandingPanel title="Country Intelligence Index" count={`${COUNTRY_INTELLIGENCE_SIGNALS.length} SIG`}>
+            <div className="wm-panel-note">
+              Composite national instability scoring across military, economic, cyber, civil, infrastructure, maritime, narrative, and market signals.
+            </div>
             <div className="wm-country-list">
-              {COUNTRY_INSTABILITY.map((row) => (
+              {COUNTRY_INTELLIGENCE_INDEX.map((row) => (
                 <div key={row.country} className="wm-country-row">
                   <div className="wm-country-row__top">
                     <span>{row.country}</span>
@@ -653,48 +624,159 @@ function LandingSurface({
             <div className="wm-risk-gauge">
               <div className="wm-risk-gauge__ring">
                 <div>
-                  <strong>64</strong>
-                  <span>Elevated</span>
+                  <strong>{STRATEGIC_RISK.score}</strong>
+                  <span>{STRATEGIC_RISK.band}</span>
                 </div>
               </div>
               <div className="wm-risk-gauge__trend">
                 <span>Trend</span>
-                <strong>Stable</strong>
+                <strong>{STRATEGIC_RISK.trend}</strong>
               </div>
             </div>
             <div className="wm-cascade-bar">
               <span>Infrastructure cascade</span>
-              <strong>1453 links</strong>
+              <strong>{STRATEGIC_RISK.infrastructureLinks} links</strong>
             </div>
-          </LandingPanel>
-
-          <LandingPanel title="Intel Feed" count="LIVE">
-            <div className="wm-feed-stack">
-              {INTEL_FEED_ITEMS.map((item) => (
-                <div key={item} className="wm-feed-item">
-                  <div className="wm-feed-item__tags">
-                    <span>ALERT</span>
-                    <span>MILITARY</span>
-                  </div>
-                  <p>{item}</p>
+            <div className="wm-mini-metric-list">
+              {STRATEGIC_RISK.composite.map((item) => (
+                <div key={item.label} className="wm-mini-metric">
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
                 </div>
               ))}
             </div>
           </LandingPanel>
 
-          <LandingPanel title="World News" count="LIVE">
-            <div className="wm-feed-stack">
-              {WORLD_NEWS_ITEMS.map((item) => (
-                <div key={item} className="wm-feed-item">
-                  <div className="wm-feed-item__tags">
-                    <span>ALERT</span>
-                    <span>CONFLICT</span>
+          <LandingPanel title="Cross-Stream Correlation" count="LIVE">
+            <div className="wm-panel-note">
+              Military, economic, disaster, and escalation signals converging into a shared decision window.
+            </div>
+            <div className="wm-correlation-stack">
+              {CROSS_STREAM_CORRELATION.map((item) => (
+                <div key={item.title} className="wm-correlation-card">
+                  <div className="wm-correlation-card__top">
+                    <strong>{item.title}</strong>
+                    <span>{item.score}</span>
                   </div>
-                  <p>{item}</p>
+                  <div className="wm-country-row__bar">
+                    <div style={{ width: `${item.score}%` }} />
+                  </div>
+                  <p>{item.description}</p>
                 </div>
               ))}
             </div>
           </LandingPanel>
+
+          <FeedPanel title="Intel Feed" count="LIVE" items={INTEL_FEED_ITEMS} />
+
+          {REGIONAL_NEWS_PANELS.map((panel) => (
+            <FeedPanel key={panel.title} title={panel.title} count={panel.count} items={panel.items} />
+          ))}
+
+          <LandingPanel title="Predictions" count="2">
+            <div className="wm-prediction-card">
+              <div className="wm-prediction-badge">{PREDICTIONS_PANEL.market}</div>
+              <p>{PREDICTIONS_PANEL.question}</p>
+              <div className="wm-prediction-meta">
+                <span>Vol: {PREDICTIONS_PANEL.volume}</span>
+                <span>Closes: {PREDICTIONS_PANEL.closeDate}</span>
+                <strong>{PREDICTIONS_PANEL.badge}</strong>
+              </div>
+              <div className="wm-yes-no-bar">
+                <div className="wm-yes-no-bar__yes" style={{ width: `${PREDICTIONS_PANEL.yes}%` }}>
+                  Yes {PREDICTIONS_PANEL.yes}%
+                </div>
+                <div className="wm-yes-no-bar__no" style={{ width: `${PREDICTIONS_PANEL.no}%` }}>
+                  No {PREDICTIONS_PANEL.no}%
+                </div>
+              </div>
+            </div>
+          </LandingPanel>
+
+          <LandingPanel title="Metals & Materials" count="6">
+            <div className="wm-commodity-grid">
+              {METALS_AND_MATERIALS.map((item) => (
+                <div key={item.name} className="wm-commodity-card">
+                  <span>{item.name}</span>
+                  <strong>{item.price}</strong>
+                  <em>{item.delta}</em>
+                  <SignalSparkline values={item.trend} trend={item.delta.startsWith("-") ? "down" : "up"} />
+                </div>
+              ))}
+            </div>
+          </LandingPanel>
+
+          <LandingPanel title="Energy Complex" count="LIVE">
+            <div className="wm-energy-stack">
+              {ENERGY_COMPLEX.map((item) => (
+                <div key={item.label} className="wm-energy-row">
+                  <div>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                  <em className={item.tone === "up" ? "positive" : "negative"}>{item.delta}</em>
+                </div>
+              ))}
+            </div>
+          </LandingPanel>
+
+          <LandingPanel title="Markets" count="Watchlist">
+            <div className="wm-market-list">
+              {MARKETS_PANEL.map((item) => (
+                <div key={item.ticker} className="wm-market-row">
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.ticker}</span>
+                  </div>
+                  <div>
+                    <strong>{item.price}</strong>
+                    <em>{item.delta}</em>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </LandingPanel>
+
+          <LandingPanel title="Macro Stress" count="4">
+            <div className="wm-mini-metric-list">
+              {MACRO_STRESS.map((item) => (
+                <div key={item.label} className="wm-mini-metric">
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+          </LandingPanel>
+
+          <LandingPanel title="Finance Radar" count="7-signal composite">
+            <div className="wm-radar-grid">
+              <div className="wm-radar-summary">
+                <strong>{FINANCE_RADAR.compositeScore}</strong>
+                <span>Composite</span>
+              </div>
+              <div className="wm-radar-totals">
+                <div><strong>{FINANCE_RADAR.stockExchanges}</strong><span>Exchanges</span></div>
+                <div><strong>{FINANCE_RADAR.commodities}</strong><span>Commodities</span></div>
+                <div><strong>{FINANCE_RADAR.cryptoPairs}</strong><span>Crypto</span></div>
+                <div><strong>{FINANCE_RADAR.centralBanks}</strong><span>CBs</span></div>
+              </div>
+            </div>
+            <div className="wm-correlation-stack">
+              {FINANCE_RADAR.compositeSignals.map((item) => (
+                <div key={item.label} className="wm-correlation-card">
+                  <div className="wm-correlation-card__top">
+                    <strong>{item.label}</strong>
+                    <span>{item.value}</span>
+                  </div>
+                  <div className="wm-country-row__bar">
+                    <div style={{ width: `${item.value}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </LandingPanel>
+
+          <FeedPanel title="World News" count="LIVE" items={WORLD_NEWS_ITEMS} />
         </section>
       </div>
 
@@ -719,11 +801,6 @@ function LandingSurface({
 
       <button type="button" className="wm-discord-pill" onClick={onOpenAssistant}>
         Join the Discord Community
-      </button>
-
-      <button type="button" className="wm-assistant-fab" onClick={onOpenAssistant}>
-        <span className="wm-assistant-fab__badge">AI</span>
-        Open strategic copilot
       </button>
     </div>
   );
@@ -807,12 +884,83 @@ function LoginSurface({ onLogin, onBack }) {
   );
 }
 
+function ChatSurface({ onBack, onOpenConsole }) {
+  return (
+    <div className="wm-shell wm-shell--chat">
+      <header className="header">
+        <div className="header-left">
+          <span className="logo">SENTINEL COPILOT</span>
+          <span className="version">prompt surface</span>
+        </div>
+        <div className="header-right">
+          <button type="button" className="search-btn" onClick={onOpenConsole}>
+            Strategic console
+          </button>
+          <button type="button" className="copy-link-btn" onClick={onBack}>
+            Back to homepage
+          </button>
+        </div>
+      </header>
+      <div className="wm-chat-layout">
+        <aside className="wm-chat-sidebar">
+          <div className="wm-chat-card">
+            <p className="wm-chat-card__eyebrow">Copilot mode</p>
+            <h2>Prompt-driven incident workflow</h2>
+            <p>
+              The chat now lives on its own page and acts as the operator surface for filling backend prompt placeholders before execution.
+            </p>
+          </div>
+          {CHAT_BRIEFING_MODULES.map((module) => (
+            <div key={module.title} className="wm-chat-card">
+              <p className="wm-chat-card__eyebrow">{module.title}</p>
+              <div className="wm-chat-chip-list">
+                {module.items.map((item) => (
+                  <span key={item} className="wm-chat-chip">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </aside>
+        <main className="wm-chat-main">
+          <AnimatedAIChat />
+        </main>
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  const [surface, setSurface] = useState("landing");
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [surface, setSurface] = useState(() => (typeof window === "undefined" ? "landing" : getSurfaceFromHash()));
   const [mapMode, setMapMode] = useState("flat");
   const [incident, setIncident] = useState(INITIAL_INCIDENT);
   const [selectedResponsePath, setSelectedResponsePath] = useState(RESPONSE_PATHS[1]);
+  const [activeLayerIds, setActiveLayerIds] = useState(DEFAULT_ACTIVE_LAYER_IDS);
+
+  useEffect(() => {
+    const syncSurface = () => setSurface(getSurfaceFromHash());
+    window.addEventListener("hashchange", syncSurface);
+    syncSurface();
+    return () => window.removeEventListener("hashchange", syncSurface);
+  }, []);
+
+  const navigate = useCallback((nextSurface) => {
+    const hash = surfaceToHash(nextSurface);
+    if (!hash) {
+      window.history.replaceState({}, "", window.location.pathname + window.location.search);
+      setSurface("landing");
+      return;
+    }
+    window.location.hash = hash;
+    setSurface(nextSurface);
+  }, []);
+
+  const toggleLayer = useCallback((layerId) => {
+    setActiveLayerIds((current) =>
+      current.includes(layerId) ? current.filter((value) => value !== layerId) : [...current, layerId],
+    );
+  }, []);
 
   const consoleModel = useMemo(
     () => buildConsoleModel(incident, selectedResponsePath),
@@ -836,8 +984,8 @@ function App() {
       {
         id: "console-arc-3",
         start: { lat: incident.lat || 34.5261, lon: incident.lon || 74.2612 },
-        end: { lat: 26.9124, lon: 75.7873 },
-        color: "#60a5fa",
+        end: { lat: 19.076, lon: 72.8777 },
+        color: "#34d399",
       },
     ],
     [incident.lat, incident.lon],
@@ -851,43 +999,31 @@ function App() {
     [incident.lat, incident.lon],
   );
 
-  const assistantOverlay = assistantOpen ? (
-    <div className="fixed inset-0 z-50 bg-slate-950/78 backdrop-blur-sm">
-      <button
-        type="button"
-        onClick={() => setAssistantOpen(false)}
-        className="absolute right-5 top-5 z-[60] rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm text-slate-200 transition hover:border-cyan-300/35 hover:text-white"
-      >
-        Close assistant
-      </button>
-      <AnimatedAIChat />
-    </div>
-  ) : null;
-
   if (surface === "landing") {
     return (
-      <>
-        <LandingSurface
-          onEnterConsole={() => setSurface("console")}
-          onOpenLogin={() => setSurface("login")}
-          onOpenAssistant={() => setAssistantOpen(true)}
-          incident={incident}
-          incidentPoint={incidentPoint}
-          setIncident={setIncident}
-          selectedResponsePath={selectedResponsePath}
-          setSelectedResponsePath={setSelectedResponsePath}
-          consoleModel={consoleModel}
-          mapMode={mapMode}
-          setMapMode={setMapMode}
-          globeArcs={globeArcs}
-        />
-        {assistantOverlay}
-      </>
+      <LandingSurface
+        onEnterConsole={() => navigate("console")}
+        onOpenLogin={() => navigate("login")}
+        onOpenAssistant={() => navigate("chat")}
+        incident={incident}
+        incidentPoint={incidentPoint}
+        selectedResponsePath={selectedResponsePath}
+        consoleModel={consoleModel}
+        mapMode={mapMode}
+        setMapMode={setMapMode}
+        globeArcs={globeArcs}
+        activeLayerIds={activeLayerIds}
+        toggleLayer={toggleLayer}
+      />
     );
   }
 
   if (surface === "login") {
-    return <LoginSurface onLogin={() => setSurface("console")} onBack={() => setSurface("landing")} />;
+    return <LoginSurface onLogin={() => navigate("console")} onBack={() => navigate("landing")} />;
+  }
+
+  if (surface === "chat") {
+    return <ChatSurface onBack={() => navigate("landing")} onOpenConsole={() => navigate("console")} />;
   }
 
   return (
@@ -901,21 +1037,21 @@ function App() {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => setSurface("landing")}
+              onClick={() => navigate("landing")}
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-300/35 hover:text-white"
             >
               Website
             </button>
             <button
               type="button"
-              onClick={() => setSurface("login")}
+              onClick={() => navigate("login")}
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-300/35 hover:text-white"
             >
               Login
             </button>
             <button
               type="button"
-              onClick={() => setAssistantOpen(true)}
+              onClick={() => navigate("chat")}
               className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
             >
               Open prompt assistant
@@ -1139,16 +1275,14 @@ function App() {
 
       <button
         type="button"
-        onClick={() => setAssistantOpen(true)}
+        onClick={() => navigate("chat")}
         className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-full border border-cyan-300/30 bg-slate-950/85 px-5 py-3 text-sm text-cyan-100 shadow-[0_0_40px_rgba(34,211,238,0.18)] backdrop-blur transition hover:border-cyan-300/55 hover:bg-slate-900"
       >
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-400 text-base font-semibold text-slate-950">
           AI
         </span>
-        Open chatbot prompt flow
+        Open chatbot page
       </button>
-
-      {assistantOverlay}
     </div>
   );
 }
