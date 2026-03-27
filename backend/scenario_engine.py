@@ -1,5 +1,5 @@
 """
-Scenario Engine — Person 2 Owned (implemented by Person 3 for integration)
+Scenario Engine — Person 2 / Person 3 joint implementation
 Reads scenario JSON and provides phase data on demand.
 """
 
@@ -37,6 +37,13 @@ class ScenarioEngine:
             "initial_threat_level": self.scenario_data.get("initial_threat_level", "elevated"),
             "total_phases": len(self.phases),
         }
+
+    # Person 2 interface aliases
+    def get_theater_name(self) -> str:
+        return self.scenario_data.get("theater_name", "Unknown Theater")
+
+    def get_objective(self) -> str:
+        return self.scenario_data.get("objective", "Unknown Objective")
 
     def get_phase(self, phase_index: int) -> dict | None:
         """Return phase data for the given index, or None if out of range."""
