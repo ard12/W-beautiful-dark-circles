@@ -17,11 +17,12 @@
 ### Why this is a strong hackathon project
 
 - Highly visual — dark military dashboard, map with markers, real-time alerts
+- Premium product presence — landing page + login + dashboard makes it feel like a real product, not a weekend hack
 - Easy to narrate — judges understand the loop in under a minute
 - Strong AI story without needing frontier research
 - Feels bigger than the MVP actually is
 - Reliable because the demo uses staged scenario data
-- Clear demo arc: input → understanding → recommendation → projected outcome
+- Clear demo arc: landing → login → operational picture → reasoning → projected outcome
 
 ---
 
@@ -60,11 +61,22 @@ The deeper logic:
 
 ### MVP Shape
 
-A **single-screen command dashboard** with three columns:
+Three product surfaces:
 
-- **Left:** ORBAT / unit cards / resource status / alerts
-- **Center:** Operational map with unit and threat markers
-- **Right:** Scorecard, AI assessment, recommendation card, query box, SITREP action
+1. **Landing / product page** — premium intro surface that frames the problem, explains SENTINEL, and communicates value. This is the judge's first impression and should feel like a polished product reveal, not a placeholder.
+2. **Login page** — clean Supabase Auth entry. Simple, intentional, product-grade.
+3. **Command dashboard** — the core operational interface, a single-screen with three columns:
+   - **Left:** ORBAT / unit cards / resource status / alerts
+   - **Center:** Operational map with unit and threat markers
+   - **Right:** Scorecard, AI assessment, recommendation card, query box, SITREP action
+
+### Why landing + login matter for a hackathon
+
+- Judges see a complete product, not a raw internal tool
+- The landing page controls the narrative before the demo begins
+- Login signals seriousness and product maturity
+- The transition from landing → login → dashboard is itself a wow moment
+- Total build cost is low; presentation impact is high
 
 ### Interaction Model
 
@@ -88,6 +100,7 @@ This gives you: reliability, demo control, less debugging risk, a stronger narra
 - Simulate inputs, make the UI look real
 - Keep the backend simple, push complexity into scenario design and presentation
 - Optimize for one excellent demo path, not feature breadth
+- Invest in first impressions: landing page and login polish are part of demo reliability
 
 ---
 
@@ -115,20 +128,23 @@ This gives you: reliability, demo control, less debugging risk, a stronger narra
 - Local edge model stack → cloud LLM API (Claude)
 - Full retrieval / vector DB → curated context pack (doctrine + area briefing text files)
 - Cesium.js 3D globe → Leaflet 2D with dark tiles
-- Persistent storage → in-memory world state
+- Custom auth system → Supabase Auth (simple, fast, hackathon-friendly)
 
 ### Cut from MVP
 - Mesh sync, encrypted comms, offline-first
 - Full doctrine engine
 - Live video analysis, voice pipeline
 - Real classified-source handling
-- Docker, databases, heavy infrastructure
+- Docker, heavy custom infrastructure
+- Complex RBAC or enterprise auth
 
 ---
 
 ## 5. Feasibility Triage
 
 ### Must Build
+- Landing / product page (premium first impression)
+- Login page (Supabase Auth)
 - Single-screen dashboard (3-column layout)
 - Scenario engine (JSON phase reader)
 - In-memory world state manager
@@ -246,15 +262,17 @@ We are **not** building: a real military system, a production command platform, 
 
 ## 10. Happy Path
 
-1. Dashboard opens in Theater Alpha — units, map, and objective visible
-2. Scenario phase advances — intel report arrives, threat marker appears on map
-3. ORBAT/resource status updates — Bravo-2 medical drops, Charlie-1 fuel degrades
-4. AI panel explains the threat and scores it — recommendations surface
-5. Commander types: "Who can support this sector?"
-6. System responds using current world state with supporting data points
-7. Commander approves recommended plan
-8. System projects likely next state — new risks and expected changes shown
-9. SITREP generated — formatted situation report covering all aspects
+1. Landing page loads — premium product intro, problem framing, value proposition
+2. Commander logs in via Supabase Auth — clean, fast, product-grade
+3. Dashboard opens in Theater Alpha — units, map, and objective visible
+4. Scenario phase advances — intel report arrives, threat marker appears on map
+5. ORBAT/resource status updates — Bravo-2 medical drops, Charlie-1 fuel degrades
+6. AI panel explains the threat and scores it — recommendations surface
+7. Commander types: "Who can support this sector?"
+8. System responds using current world state with supporting data points
+9. Commander approves recommended plan
+10. System projects likely next state — new risks and expected changes shown
+11. SITREP generated — formatted situation report covering all aspects
 
 ---
 
@@ -344,11 +362,12 @@ Frontend Dashboard (React + Leaflet)
 | Styling | TailwindCSS | Rapid dark-theme, no CSS debugging |
 | Map | react-leaflet + CartoDB Dark Matter tiles | 5-min setup, dark military look |
 | Charts | Recharts (optional) | Quick resource bar charts |
-| Backend | Python 3.11 + FastAPI | Async, fast to build |
+| Auth + DB | Supabase (Auth + Postgres) | Instant auth, optional persistence, hackathon-friendly |
+| Backend | Python 3.11 + FastAPI | Async, orchestration, scoring, AI reasoning |
 | Validation | Pydantic v2 | Schema enforcement for all data |
 | AI/LLM | Anthropic Claude API | Best reasoning quality |
-| State | In-memory Python dict | No DB overhead |
-| Data | JSON files + plaintext context | Easy to author and modify |
+| State | In-memory Python dict + Supabase fallback | Fast runtime state; Supabase for persistence where useful |
+| Data | JSON files + plaintext context | Scenario seeding, fallback, demo safety |
 
 ---
 
@@ -586,6 +605,7 @@ See **[docs/PANIC_PLAYBOOK.md](./docs/PANIC_PLAYBOOK.md)** for the full emergenc
 See **[docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md)** for the full 3-minute narration.
 
 ### What judges should see
+- Polished product entry: landing page → login → dashboard transition
 - Clear operational picture with professional military aesthetic
 - Threat emergence → AI reasoning → concrete recommendation
 - Commander interaction (query + approval)
@@ -593,10 +613,11 @@ See **[docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md)** for the full 3-minute narra
 - Professional SITREP output
 
 ### Key wow moments
-1. One-screen fusion of everything
-2. AI that explains *why* something is dangerous
-3. Recommendation approval → immediate projected impact
-4. Instant formatted SITREP
+1. Premium landing page that frames the product before the demo begins
+2. One-screen fusion of everything
+3. AI that explains *why* something is dangerous
+4. Recommendation approval → immediate projected impact
+5. Instant formatted SITREP
 
 ---
 

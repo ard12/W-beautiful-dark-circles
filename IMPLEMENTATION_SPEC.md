@@ -17,9 +17,10 @@
 - Make the demo deterministic enough to survive pressure
 
 ### Avoid
-- Databases, Docker, local models, vector databases
+- Custom databases, Docker, local models, vector databases
 - Multi-agent frameworks, real-time external feeds
-- Complicated auth, overbuilt abstractions
+- Complex RBAC or enterprise auth (Supabase Auth is acceptable — it’s hackathon-friendly)
+- Overbuilt abstractions
 
 ---
 
@@ -227,7 +228,7 @@ One scenario with 3–5 clean phases. One strong narrative arc. Don't try to sup
 
 ### Principle
 
-In-memory. No DB. One Python class.
+In-memory for runtime speed. Supabase available for auth and optional persistence. One Python class manages the operational world state.
 
 ### Manager Interface
 
@@ -857,6 +858,8 @@ AI_API_KEY=your_anthropic_api_key_here
 AI_MODEL=claude-sonnet-4-20250514
 BACKEND_PORT=8000
 FALLBACK_MODE=false
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ### frontend/package.json (key deps)
@@ -868,7 +871,8 @@ FALLBACK_MODE=false
     "react-dom": "^18",
     "react-leaflet": "^4",
     "leaflet": "^1.9",
-    "recharts": "^2"
+    "recharts": "^2",
+    "@supabase/supabase-js": "^2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4",

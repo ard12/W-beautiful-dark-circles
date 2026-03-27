@@ -10,7 +10,7 @@ An AI-native mission intelligence and planning co-pilot that fuses multiple batt
 | **Team** | Aimeblack — 3 active builders |
 | **Primary user** | Commander / operator / analyst |
 | **Core promise** | Input → fused picture → reasoning → recommendation → projected outcome |
-| **Stack** | React + Vite + Tailwind + Leaflet · FastAPI + Pydantic · Claude API |
+| **Stack** | React + Vite + Tailwind + Leaflet · FastAPI + Pydantic · Supabase · Claude API |
 
 ---
 
@@ -26,13 +26,23 @@ An AI-native mission intelligence and planning co-pilot that fuses multiple batt
 
 | In the MVP | Not in the MVP |
 |---|---|
-| Single-screen command dashboard | Real classified data integration |
-| Map with units and threat markers | Live video or drone inference |
-| Deterministic threat scoring | Vector DB / RAG stack |
-| AI recommendations with explanations | Persistent database layer |
-| Commander NL query box | Secure comms / mesh sync / offline-first |
-| One approve-plan → projection loop | Multi-agent reasoning loops |
-| SITREP generation | Full doctrinal planning engine |
+| Landing / product intro page | Real classified data integration |
+| Login via Supabase Auth | Live video or drone inference |
+| Single-screen command dashboard | Vector DB / RAG stack |
+| Map with units and threat markers | Secure comms / mesh sync / offline-first |
+| Deterministic threat scoring | Multi-agent reasoning loops |
+| AI recommendations with explanations | Full doctrinal planning engine |
+| Commander NL query box | Multi-user collaboration |
+| One approve-plan → projection loop | |
+| SITREP generation | |
+
+## Product Surfaces
+
+The MVP has three user-facing surfaces:
+
+1. **Landing page** — premium product intro for judges; explains the problem, the system, and the value
+2. **Login page** — clean Supabase Auth entry; polished, product-grade
+3. **Dashboard** — the core operational intelligence interface (3-column command layout)
 
 ## Quick Start
 
@@ -67,6 +77,8 @@ Copy `.env.example` to `.env` and set:
 AI_API_KEY=your_anthropic_api_key
 AI_MODEL=claude-sonnet-4-20250514
 BACKEND_URL=http://localhost:8000
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ## Repository Structure
@@ -99,12 +111,14 @@ sentinel-bms/
 
 ## Demo Flow (3 minutes)
 
-1. Open dashboard — theater, units, and objective visible
-2. Advance scenario — threat marker appears, scorecard updates
-3. AI assessment and recommendation surface
-4. Commander asks: "Who can reinforce Grid 447?"
-5. Approve recommended action — projected next state appears
-6. Generate SITREP — close with value proposition
+1. Open landing page — product vision, problem framing, value proposition
+2. Log in — clean Supabase Auth entry
+3. Dashboard loads — theater, units, and objective visible
+4. Advance scenario — threat marker appears, scorecard updates
+5. AI assessment and recommendation surface
+6. Commander asks: "Who can reinforce Grid 447?"
+7. Approve recommended action — projected next state appears
+8. Generate SITREP — close with value proposition
 
 ## Key Documents
 

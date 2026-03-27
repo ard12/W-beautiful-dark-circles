@@ -125,15 +125,17 @@ Cut these only if desperate:
 
 Even in worst case, this must work:
 
-1. Dashboard loads with dark theme and looks like a command system
-2. At least 3 unit cards visible with status
-3. At least 1 threat visible (on map or as a card)
-4. AI panel shows an assessment with reasoning text
-5. One recommendation with rationale is visible
-6. One question-answer pair is shown
-7. The narrator tells a coherent 3-minute story
+1. Landing page loads and looks premium
+2. Login works (Supabase Auth or pre-authenticated bypass)
+3. Dashboard loads with dark theme and looks like a command system
+4. At least 3 unit cards visible with status
+5. At least 1 threat visible (on map or as a card)
+6. AI panel shows an assessment with reasoning text
+7. One recommendation with rationale is visible
+8. One question-answer pair is shown
+9. The narrator tells a coherent 3-minute story
 
-If you have these 7 things, you have a demo. Everything else is enhancement.
+If you have these 9 things, you have a demo. Everything else is enhancement.
 
 ---
 
