@@ -1,0 +1,86 @@
+[
+  {
+    "unit_id": "U-1",
+    "name": "Alpha-1",
+    "role": "infantry",
+    "status": "ready",
+    "latitude": 34.083,
+    "longitude": 71.462,
+    "grid_ref": "Grid 441",
+    "resources": {
+      "fuel": 88,
+      "ammo": 92,
+      "medical": 85
+    }
+  },
+  {
+    "unit_id": "U-2",
+    "name": "Bravo-2",
+    "role": "armor",
+    "status": "ready",
+    "latitude": 34.102,
+    "longitude": 71.498,
+    "grid_ref": "Grid 443",
+    "resources": {
+      "fuel": 71,
+      "ammo": 78,
+      "medical": 64
+    }
+  },
+  {
+    "unit_id": "U-3",
+    "name": "Charlie-1",
+    "role": "armor",
+    "status": "ready",
+    "latitude": 34.068,
+    "longitude": 71.521,
+    "grid_ref": "Grid 440",
+    "resources": {
+      "fuel": 67,
+      "ammo": 81,
+      "medical": 72
+    }
+  },
+  {
+    "unit_id": "U-4",
+    "name": "Echo-1",
+    "role": "medical",
+    "status": "ready",
+    "latitude": 34.115,
+    "longitude": 71.568,
+    "grid_ref": "Grid 449",
+    "resources": {
+      "fuel": 78,
+      "ammo": 30,
+      "medical": 100
+    }
+  },
+  {
+    "unit_id": "U-5",
+    "name": "Viper-11",
+    "role": "cas",
+    "status": "ready",
+    "latitude": 34.145,
+    "longitude": 71.423,
+    "grid_ref": "Grid 451",
+    "resources": {
+      "fuel": 90,
+      "ammo": 85,
+      "medical": 95
+    }
+  },
+  {
+    "unit_id": "U-6",
+    "name": "Hotel-6",
+    "role": "logistics",
+    "status": "ready",
+    "latitude": 34.055,
+    "longitude": 71.440,
+    "grid_ref": "Grid 438",
+    "resources": {
+      "fuel": 95,
+      "ammo": 40,
+      "medical": 60
+    }
+  }
+]

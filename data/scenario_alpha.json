@@ -1,0 +1,107 @@
+{
+  "scenario_id": "alpha",
+  "theater_name": "Theater Alpha",
+  "objective": "Stabilize Sector East and prevent hostile escalation near Grid 447.",
+  "initial_threat_level": "elevated",
+  "phases": [
+    {
+      "phase_index": 0,
+      "title": "Initial Positioning",
+      "events": [
+        {
+          "type": "intel_report",
+          "summary": "SIGINT intercept from eastern corridor: encrypted burst transmission consistent with hostile command-and-control activity. Confidence moderate. Source: comms_intercept."
+        }
+      ]
+    },
+    {
+      "phase_index": 1,
+      "title": "Threat Emergence",
+      "events": [
+        {
+          "type": "threat_detected",
+          "threat": {
+            "threat_id": "T-1",
+            "label": "Hostile armored column",
+            "latitude": 34.125,
+            "longitude": 71.552,
+            "severity": 78,
+            "confidence": 71,
+            "summary": "Drone recon confirms 3x armored vehicles moving south toward Grid 447. Speed indicates arrival within 45 minutes. Formation suggests offensive intent.",
+            "source_type": "drone_recon"
+          }
+        },
+        {
+          "type": "resource_change",
+          "unit_id": "U-2",
+          "resource_patch": {
+            "medical": 0
+          }
+        },
+        {
+          "type": "intel_report",
+          "summary": "Bravo-2 reports medical supplies exhausted after treating two casualties from IED strike on patrol route. Requesting medevac support."
+        }
+      ]
+    },
+    {
+      "phase_index": 2,
+      "title": "Response Window",
+      "events": [
+        {
+          "type": "resource_change",
+          "unit_id": "U-3",
+          "resource_patch": {
+            "fuel": 34
+          }
+        },
+        {
+          "type": "intel_report",
+          "summary": "Ground sensor network confirms hostile column has halted at Grid 445. Vehicles stationary for 12 minutes. Possible staging for coordinated assault or waiting for reinforcement."
+        },
+        {
+          "type": "threat_detected",
+          "threat": {
+            "threat_id": "T-2",
+            "label": "Possible hostile observation post",
+            "latitude": 34.138,
+            "longitude": 71.540,
+            "severity": 42,
+            "confidence": 55,
+            "summary": "Infrared signature detected on ridgeline overlooking Sector East. Could be hostile forward observer. Single source, low confidence.",
+            "source_type": "ground_sensor"
+          }
+        }
+      ]
+    },
+    {
+      "phase_index": 3,
+      "title": "Post-Action Assessment",
+      "events": [
+        {
+          "type": "status_change",
+          "unit_id": "U-2",
+          "new_status": "moving"
+        },
+        {
+          "type": "unit_move",
+          "unit_id": "U-4",
+          "latitude": 34.108,
+          "longitude": 71.510,
+          "grid_ref": "Grid 447"
+        },
+        {
+          "type": "intel_report",
+          "summary": "CAS engagement by Viper-11 confirmed. Hostile column dispersed. Two vehicles disabled, one retreating north. BDA assessment pending. Sector East corridor pressure reduced."
+        },
+        {
+          "type": "resource_change",
+          "unit_id": "U-5",
+          "resource_patch": {
+            "ammo": 62
+          }
+        }
+      ]
+    }
+  ]
+}

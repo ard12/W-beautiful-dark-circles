@@ -1,0 +1,13 @@
+AREA BRIEFING — THEATER ALPHA / SECTOR EAST
+
+Geography: Theater Alpha covers a 40km x 30km operational area in mountainous terrain with elevations ranging from 1200m to 2800m. The eastern corridor (Grid 440-450) is the primary axis of advance, constrained by ridgelines to the north and south. Grid 447 sits at a key chokepoint where the corridor narrows to approximately 800m between two ridges.
+
+Key Terrain: Grid 447 is the decisive point. Control of this chokepoint determines access to the western valley where friendly logistics and command elements are positioned. The ridgeline at Grid 449-451 provides observation over the entire eastern approach.
+
+Known Hostile Disposition: Intelligence indicates a reinforced mechanized company operating from staging areas east of Grid 450. Estimated strength: 8-12 armored vehicles, 2 infantry platoons. Hostile forces have demonstrated willingness to probe the eastern corridor with small armored columns before committing larger forces.
+
+Friendly Mission: Task Force Alpha is tasked with defending the eastern corridor, maintaining surveillance of hostile staging areas, and preventing hostile forces from gaining control of Grid 447. Secondary mission: protect logistics route running through the western valley (Grid 435-440).
+
+Weather: Clear skies, visibility 15km+. Terrain limits vehicle movement to established routes through the corridor. Off-road movement possible for infantry but slow due to rocky terrain and elevation changes. Night operations favor defender due to superior thermal imaging capability.
+
+Communications: Intermittent satellite comms. Primary relay through hilltop repeaters at Grid 451. Backup: HF radio. Comms blackouts possible during hostile electronic warfare activity.

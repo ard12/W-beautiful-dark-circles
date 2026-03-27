@@ -1,0 +1,13 @@
+STANDING OPERATIONAL DOCTRINE — THEATER ALPHA
+
+Force Protection: All units maintain minimum 30% resource levels across fuel, ammunition, and medical supplies. Any unit falling below 30% on any resource is flagged for immediate resupply consideration. Units at 0% on any critical resource are classified as degraded and should not be tasked for forward operations without replenishment.
+
+Escalation Thresholds: Threat scores above 70 require immediate commander notification and an active response recommendation. Scores above 85 authorize pre-positioned CAS assets to prepare for engagement without additional approval. Scores below 40 are monitored but do not require active response.
+
+Medical Evacuation: MEDEVAC requests take priority over logistics resupply. The nearest medical-capable unit should be identified and routed within the current operational window. Casualty evacuation routes must avoid active threat axes.
+
+Close Air Support: CAS requests require commander approval. Digital 9-line submissions are preferred. CAS assets on station may be engaged against confirmed hostile targets when threat score exceeds 85 and friendly forces are within 2km of the threat axis.
+
+Resupply Windows: LOGPAC convoys should be routed during periods of reduced threat activity. Convoy routes must avoid the primary threat axis. Hotel-series logistics units maintain resupply authority for all forward-deployed elements.
+
+Rules of Engagement: Positive identification required before engagement. Proportional response mandated. All engagements must be logged with timestamp, target description, and outcome for after-action review.
