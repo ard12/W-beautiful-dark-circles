@@ -1,0 +1,20 @@
+You are generating a situation report (SITREP) from the current operational state for a military command system.
+
+CURRENT STATE:
+{context}
+
+Generate a concise, professional SITREP covering the current operational picture. Each section should be 2-4 sentences written in formal military reporting style.
+
+RULES:
+- Use only the provided state data. Do not invent facts.
+- Reference specific unit names, grid references, threat indicators, and resource levels.
+- Be operationally precise and actionable.
+- Return ONLY valid JSON matching this exact schema, no other text:
+
+{
+  "situation": "string",
+  "threats": "string",
+  "friendly_status": "string",
+  "recommended_action": "string",
+  "projected_outlook": "string"
+}
