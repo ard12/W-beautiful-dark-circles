@@ -37,3 +37,17 @@ export const getSitrep = async () => {
     const res = await fetch(`${BASE_URL}/sitrep`);
     return res.json();
 };
+
+export const getPromptPlaceholders = async () => {
+    const res = await fetch(`${BASE_URL}/prompts/placeholders`);
+    return res.json();
+};
+
+export const executePrompt = async (incidentData) => {
+    const res = await fetch(`${BASE_URL}/prompts/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(incidentData),
+    });
+    return res.json();
+};
