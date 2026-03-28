@@ -1,549 +1,458 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef } from "react";
+import {
+  ArrowRight,
+  BrainCircuit,
+  ChevronRight,
+  Layers3,
+  LockKeyhole,
+  Map,
+  Radar,
+  ShieldCheck,
+  Workflow,
+} from "lucide-react";
 
-/* ═══════════════════════════════════════════════════════════════════
-   SENTINEL — Landing Page Scaffold
-   ───────────────────────────────────────────────────────────────────
-   Usage:  Import and render, or paste sections into existing
-           LandingSurface if preferred.
-   Notes:  Self-contained.  No router dependency.
-           Uses only Tailwind utilities — no external CSS.
-   ═══════════════════════════════════════════════════════════════════ */
+import { BackgroundPaperShaders } from "@/components/ui/background-paper-shaders";
+import { Component as RobotFlyby } from "@/components/ui/robot-flyby";
 
-/* ── Tiny helpers ─────────────────────────────────────────────────── */
+const heroFacts = [
+  { value: "24h", label: "Hackathon", detail: "Build the Impossible" },
+  { value: "3", label: "Team", detail: "Builders" },
+  { value: "1", label: "Primary user", detail: "Commander / operator / analyst" },
+  { value: "4", label: "Core promise", detail: "Inputs to projected outcome" },
+];
 
-function Badge({ children }) {
+const coreCapabilities = [
+  {
+    title: "Deterministic scoring",
+    text: "Threat level, readiness, escalation risk, and confidence are computed explicitly.",
+  },
+  {
+    title: "Structured AI reasoning",
+    text: "Assessment, recommendations, key risks, and assumptions are returned in a grounded structure.",
+  },
+  {
+    title: "Response-path comparison",
+    text: "Four strategic options are shown together with their trade-offs.",
+  },
+  {
+    title: "Consequence projection",
+    text: "Approve a plan and see the predicted future state.",
+  },
+  {
+    title: "Executive briefing",
+    text: "Generate a formal SITREP in one click.",
+  },
+];
+
+const problemStatements = [
+  "Fragmented intelligence: signals, imagery, ground reports, and logistics data live in separate systems with separate timelines.",
+  "Slow decision cycles: by the time the picture is assembled, the situation has already changed.",
+  "Opaque AI: in high-stakes environments, trust requires explanation, not just answers.",
+];
+
+const surfaces = [
+  {
+    title: "Landing Page",
+    text: "Premium product intro for judges. Explains the problem, the system, and the value proposition.",
+  },
+  {
+    title: "Login Page",
+    text: "SQLite-backed authentication with pbkdf2_hmac password hashing, form validation, and error handling.",
+  },
+  {
+    title: "Strategic Console",
+    text: "Three-column command layout for incident intake, tactical and strategic views, scorecards, trust, AI reasoning, and response paths.",
+  },
+];
+
+const loopSteps = [
+  { label: "Ingest", text: "Scenario data loads: units, threats, alerts, resources, objectives." },
+  { label: "Score", text: "Deterministic computation of threat level, readiness, escalation risk, and confidence." },
+  { label: "Reason", text: "Claude API produces structured assessment, risks, assumptions, recommendations, and projected outcome." },
+  { label: "Compare", text: "Four response paths are shown with trade-offs and strategic labels." },
+  { label: "Decide", text: "Commander approves an action." },
+  { label: "Project", text: "System predicts the next state, expected changes, new risks, and outlook." },
+  { label: "Brief", text: "One-click SITREP generation for higher-command reporting." },
+];
+
+const featureGroups = [
+  {
+    title: "Implemented",
+    items: [
+      "Strategic console (3-column)",
+      "2D Theatre Board",
+      "3D Strategic Globe",
+      "Deterministic threat scoring",
+      "AI-powered assessment",
+      "Commander NL queries",
+      "Response-path comparison",
+      "Approve to projection loop",
+      "SITREP generation",
+      "SQLite login system",
+      "Landing page with live feeds",
+    ],
+  },
+  {
+    title: "Scaffolded",
+    items: [
+      "Landing page scaffold at frontend/src/pages/LandingPage.jsx",
+      "Live RSS and financial API proxy routes serving local JSON",
+    ],
+  },
+  {
+    title: "Planned",
+    items: [
+      "Multi-scenario library",
+      "Multi-agent reasoning",
+      "Real external data feeds",
+    ],
+  },
+];
+
+const architectureLayers = [
+  {
+    title: "Frontend",
+    text: "React 19 + Vite 8 + Tailwind CSS 4. App.jsx manages the surfaces, console, login, landing, and chat.",
+  },
+  {
+    title: "Backend",
+    text: "FastAPI + Pydantic with WorldStateManager, ScenarioEngine, ThreatScorer, feed proxy routes, and auth routing.",
+  },
+  {
+    title: "AI Layer",
+    text: "Claude API with structured prompts and JSON validation for assessment, queries, SITREP, projection, and report generation.",
+  },
+  {
+    title: "Data",
+    text: "SQLite for auth plus scenario, units, doctrine, area briefing, landing feed, and market snapshot files.",
+  },
+];
+
+const apiRoutes = [
+  "/state",
+  "/scenario/advance",
+  "/query",
+  "/sitrep",
+  "/project",
+  "/report",
+  "/feed/headlines",
+  "/feed/market-snapshot",
+  "/auth/login",
+];
+
+function Section({ id, eyebrow, title, description, children }) {
   return (
-    <span className="inline-block rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-1 text-[0.65rem] uppercase tracking-[0.3em] text-cyan-300">
-      {children}
-    </span>
-  );
-}
-
-function SectionEyebrow({ children }) {
-  return (
-    <p className="text-[0.65rem] uppercase tracking-[0.34em] text-cyan-300/70">
-      {children}
-    </p>
-  );
-}
-
-function Card({ children, className = "" }) {
-  return (
-    <div
-      className={`rounded-[28px] border border-white/10 bg-slate-950/60 p-6 backdrop-blur ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
-function StatBlock({ value, label, sub }) {
-  return (
-    <div className="text-center">
-      <p className="text-4xl font-bold text-white">{value}</p>
-      <p className="mt-1 text-sm font-medium text-slate-300">{label}</p>
-      {sub && <p className="mt-0.5 text-xs text-slate-500">{sub}</p>}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════ */
-/*  SECTIONS                                                         */
-/* ══════════════════════════════════════════════════════════════════ */
-
-/* ── 1. Hero ──────────────────────────────────────────────────────── */
-
-function HeroSection({ onEnter }) {
-  return (
-    <section className="relative flex min-h-[90vh] flex-col items-center justify-center px-6 text-center">
-      {/* Subtle radial glow */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(34,211,238,0.06)_0%,transparent_60%)]" />
-
-      <Badge>24-Hour Hackathon · Build the Impossible</Badge>
-
-      <h1 className="mt-8 max-w-4xl text-5xl font-bold leading-[1.1] tracking-tight text-white md:text-7xl">
-        One operational picture.
-        <br />
-        <span className="bg-gradient-to-r from-cyan-300 to-cyan-500 bg-clip-text text-transparent">
-          One decision surface.
-        </span>
-      </h1>
-
-      <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-        SENTINEL fuses fragmented intelligence into a single, explainable
-        command interface — powered by AI reasoning, deterministic scoring,
-        and consequence projection.
-      </p>
-
-      <div className="mt-10 flex flex-wrap justify-center gap-4">
-        <button
-          onClick={onEnter}
-          className="rounded-full bg-cyan-400 px-8 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-        >
-          Enter SENTINEL
-        </button>
-        <a
-          href="#problem"
-          className="rounded-full border border-white/15 px-8 py-3 text-sm text-slate-200 transition hover:border-cyan-300/40"
-        >
-          Learn more
-        </a>
-      </div>
-
-      {/* Scroll hint */}
-      <div className="absolute bottom-10 animate-bounce text-slate-500">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 5v14M5 12l7 7 7-7" />
-        </svg>
-      </div>
-    </section>
-  );
-}
-
-/* ── 2. Problem ───────────────────────────────────────────────────── */
-
-function ProblemSection() {
-  const problems = [
-    {
-      title: "Fragmented intelligence",
-      desc: "Signals, imagery, ground reports, logistics data — scattered across systems, teams, and timelines.",
-    },
-    {
-      title: "Slow decision cycles",
-      desc: "By the time a commander assembles the picture, the situation has already changed.",
-    },
-    {
-      title: "Opaque AI",
-      desc: "Most AI tools give answers without reasoning. In high-stakes environments, trust requires explanation.",
-    },
-  ];
-
-  return (
-    <section id="problem" className="px-6 py-24">
-      <div className="mx-auto max-w-5xl">
-        <SectionEyebrow>The problem</SectionEyebrow>
-        <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
-          Decision-makers are drowning in data
-          <br className="hidden md:block" />
-          and starving for clarity.
-        </h2>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {problems.map((p) => (
-            <Card key={p.title}>
-              <h3 className="text-lg font-semibold text-white">{p.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-400">{p.desc}</p>
-            </Card>
-          ))}
+    <section id={id} className="px-6 py-20 lg:px-10">
+      <div className="mx-auto max-w-7xl">
+        <p className="text-[0.72rem] uppercase tracking-[0.34em] text-cyan-300/70">{eyebrow}</p>
+        <div className="mt-4 max-w-4xl">
+          <h2 className="text-3xl font-semibold text-white md:text-5xl">{title}</h2>
+          {description ? <p className="mt-5 text-base leading-8 text-slate-400 md:text-lg">{description}</p> : null}
         </div>
+        <div className="mt-12">{children}</div>
       </div>
     </section>
   );
 }
 
-/* ── 3. What is SENTINEL ──────────────────────────────────────────── */
-
-function WhatSection() {
-  return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-5xl">
-        <SectionEyebrow>What is SENTINEL</SectionEyebrow>
-        <h2 className="mt-4 max-w-3xl text-3xl font-semibold text-white md:text-4xl">
-          An AI-native mission intelligence co-pilot that turns chaos into
-          one explainable decision surface.
-        </h2>
-        <p className="mt-6 max-w-3xl text-base leading-8 text-slate-400">
-          SENTINEL stands for <strong className="text-white">Situational Edge Intelligence for Networked Theater
-          Operations &amp; Logistics</strong>. It fuses multi-source intelligence, computes
-          deterministic threat scores, generates explainable AI assessments,
-          recommends response paths, and projects likely outcomes — all in one
-          screen.
-        </p>
-
-        <div className="mt-16 grid gap-2 md:grid-cols-5">
-          {[
-            { step: "01", label: "Ingest", desc: "Multi-source inputs fused" },
-            { step: "02", label: "Assess", desc: "Threats scored & explained" },
-            { step: "03", label: "Recommend", desc: "Actions ranked by AI" },
-            { step: "04", label: "Decide", desc: "Commander approves" },
-            { step: "05", label: "Project", desc: "Future state predicted" },
-          ].map((s) => (
-            <div key={s.step} className="rounded-2xl border border-white/10 bg-slate-900/50 p-5 text-center">
-              <p className="text-[0.6rem] uppercase tracking-[0.3em] text-cyan-300/60">Step {s.step}</p>
-              <p className="mt-2 text-lg font-semibold text-white">{s.label}</p>
-              <p className="mt-1 text-xs text-slate-500">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── 4. Build the Impossible ──────────────────────────────────────── */
-
-function ImpossibleSection() {
-  return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-4xl text-center">
-        <Badge>Hackathon theme</Badge>
-        <h2 className="mt-6 text-3xl font-semibold text-white md:text-4xl">
-          Build the Impossible
-        </h2>
-        <p className="mt-6 max-w-2xl mx-auto text-base leading-8 text-slate-400">
-          Real-world command decisions depend on fusing dozens of intelligence
-          sources, reasoning about cascading consequences, and projecting
-          outcomes under uncertainty — all in minutes. That workflow is
-          fragmented across people, systems, and weeks of analysis.
-        </p>
-        <p className="mt-4 max-w-2xl mx-auto text-base leading-8 text-slate-300">
-          SENTINEL compresses that entire cycle into{" "}
-          <strong className="text-cyan-300">one AI-powered decision surface</strong>,
-          built in 24 hours.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-/* ── 5. Product surfaces ──────────────────────────────────────────── */
-
-function SurfacesSection() {
-  const surfaces = [
-    {
-      num: "01",
-      title: "Strategic Console",
-      desc: "Three-column command layout: ORBAT status, 2D theatre board, AI reasoning. Everything a commander needs in one screen.",
-      tag: "Core product",
-    },
-    {
-      num: "02",
-      title: "AI Chatbot",
-      desc: "Prompt-driven incident intake. The system asks structured questions, runs the full AI pipeline, and delivers reasoning, sitrep, and scores.",
-      tag: "Conversational AI",
-    },
-    {
-      num: "03",
-      title: "Theatre Board",
-      desc: "A fixed 2D tactical map that visualizes the region, assets, threats, and incident markers — instantly legible for judges and operators.",
-      tag: "Visualization",
-    },
-  ];
-
-  return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-5xl">
-        <SectionEyebrow>Product surfaces</SectionEyebrow>
-        <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
-          Three surfaces. One coherent product.
-        </h2>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {surfaces.map((s) => (
-            <Card key={s.num}>
-              <p className="text-[0.6rem] uppercase tracking-[0.3em] text-cyan-300/60">Surface {s.num}</p>
-              <h3 className="mt-3 text-xl font-semibold text-white">{s.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-400">{s.desc}</p>
-              <span className="mt-4 inline-block rounded-full border border-white/10 px-3 py-1 text-[0.6rem] uppercase tracking-widest text-slate-500">
-                {s.tag}
-              </span>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── 6. Key Features ──────────────────────────────────────────────── */
-
-function FeaturesSection() {
-  const features = [
-    {
-      icon: "◎",
-      title: "Deterministic threat scoring",
-      desc: "Threat level, readiness, escalation risk, and confidence — computed algorithmically, explained by AI.",
-    },
-    {
-      icon: "⬡",
-      title: "Structured AI reasoning",
-      desc: "Every assessment includes key risks, assumptions, recommendations, and projected outcomes. JSON-validated, not freeform.",
-    },
-    {
-      icon: "✦",
-      title: "Response path comparison",
-      desc: "Four strategic response options ranked with trade-offs. Commander approves, system projects the consequence.",
-    },
-    {
-      icon: "⊕",
-      title: "Commander NL queries",
-      desc: "Ask questions in plain language. The system answers using only the real operational state — no hallucination.",
-    },
-    {
-      icon: "▸",
-      title: "SITREP generation",
-      desc: "One-click formal situation report covering the full operational picture. Ready for higher command.",
-    },
-    {
-      icon: "◆",
-      title: "Live data feeds",
-      desc: "Landing page pulls real-time headlines, market signals, and regional intelligence from backend-owned proxy routes.",
-    },
-  ];
-
-  return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-5xl">
-        <SectionEyebrow>Capabilities</SectionEyebrow>
-        <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
-          What the system actually does
-        </h2>
-        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-white/10 bg-slate-900/50 p-5">
-              <span className="text-xl text-cyan-400">{f.icon}</span>
-              <h3 className="mt-3 text-sm font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── 7. Trust & Explainability ────────────────────────────────────── */
-
-function TrustSection() {
-  return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-4xl text-center">
-        <SectionEyebrow>Trust &amp; explainability</SectionEyebrow>
-        <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
-          AI that explains <em className="text-cyan-300">why</em>. Not just{" "}
-          <em className="text-slate-500">what</em>.
-        </h2>
-        <p className="mt-6 max-w-2xl mx-auto text-base leading-8 text-slate-400">
-          Every recommendation includes its rationale. Every score has a
-          deterministic formula. Every assessment lists assumptions and
-          projected outcomes. The commander sees the reasoning, not a
-          black box.
-        </p>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {[
-            { title: "Grounded prompts", desc: "Every LLM call includes the full operational state, doctrine notes, and area briefing." },
-            { title: "Validated outputs", desc: "All AI responses conform to strict Pydantic schemas. No freeform text leaks into the UI." },
-            { title: "Fallback safety", desc: "If the model is slow or unreliable, pre-validated responses serve identical UX with zero downtime." },
-          ].map((t) => (
-            <Card key={t.title}>
-              <h3 className="text-sm font-semibold text-white">{t.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{t.desc}</p>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── 8. Architecture ──────────────────────────────────────────────── */
-
-function ArchSection() {
-  return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-4xl">
-        <SectionEyebrow>Architecture</SectionEyebrow>
-        <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
-          Lean stack. Real depth.
-        </h2>
-
-        <div className="mt-10 overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/40 p-8 font-mono text-sm leading-8 text-slate-400">
-          <pre className="whitespace-pre-wrap">{`┌───────────────────────────────────────────┐
-│  React + Vite + Tailwind                  │  ← Frontend
-│  Strategic Console · Theatre Board · Chat │
-├───────────────────────────────────────────┤
-│  FastAPI + Pydantic                       │  ← Backend
-│  World State · Scoring · Scenario Engine  │
-│  Feed Proxy · Auth (SQLite)               │
-├───────────────────────────────────────────┤
-│  Claude API (Anthropic)                   │  ← AI Layer
-│  Structured prompts · JSON validation     │
-│  Threat assessment · SITREP · Projection  │
-├───────────────────────────────────────────┤
-│  SQLite (auth) · JSON files (scenario)    │  ← Data
-└───────────────────────────────────────────┘`}</pre>
-        </div>
-
-        <div className="mt-8 grid gap-4 md:grid-cols-4 text-center">
-          <StatBlock value="6" label="API routes" sub="core product" />
-          <StatBlock value="5" label="AI surfaces" sub="reasoning endpoints" />
-          <StatBlock value="4" label="Score axes" sub="deterministic" />
-          <StatBlock value="24h" label="Build time" sub="hackathon sprint" />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── 9. Build Status ──────────────────────────────────────────────── */
-
-function StatusSection() {
-  const rows = [
-    { feature: "Landing page with live data feeds", status: "implemented", icon: "●" },
-    { feature: "SQLite-backed login system", status: "implemented", icon: "●" },
-    { feature: "Strategic console (3-column layout)", status: "implemented", icon: "●" },
-    { feature: "2D Theatre Board visualization", status: "implemented", icon: "●" },
-    { feature: "Deterministic threat scoring", status: "implemented", icon: "●" },
-    { feature: "AI-powered threat assessment", status: "implemented", icon: "●" },
-    { feature: "Commander NL queries", status: "implemented", icon: "●" },
-    { feature: "Response path comparison", status: "implemented", icon: "●" },
-    { feature: "Approve → projection loop", status: "implemented", icon: "●" },
-    { feature: "SITREP generation", status: "implemented", icon: "●" },
-    { feature: "Prompt-driven chatbot (AI Assistant)", status: "implemented", icon: "●" },
-    { feature: "Live RSS / financial API integration", status: "scaffolded", icon: "◐" },
-    { feature: "Multi-scenario library", status: "planned", icon: "○" },
-    { feature: "Multi-agent reasoning", status: "planned", icon: "○" },
-  ];
-
-  const statusColor = {
-    implemented: "text-emerald-400",
-    scaffolded: "text-amber-400",
-    planned: "text-slate-500",
+function GridCard({ icon: Icon, title, text, accent = "cyan" }) {
+  const accentClass = {
+    cyan: "text-cyan-300 border-cyan-400/15 bg-cyan-400/10",
+    rose: "text-rose-300 border-rose-400/15 bg-rose-400/10",
+    amber: "text-amber-300 border-amber-400/15 bg-amber-400/10",
+    emerald: "text-emerald-300 border-emerald-400/15 bg-emerald-400/10",
   };
 
   return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-3xl">
-        <SectionEyebrow>Build status</SectionEyebrow>
-        <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
-          What's real. Right now.
-        </h2>
-        <div className="mt-10 space-y-2">
-          {rows.map((r) => (
-            <div key={r.feature} className="flex items-center gap-3 rounded-xl border border-white/5 bg-slate-900/30 px-4 py-3">
-              <span className={`text-sm ${statusColor[r.status]}`}>{r.icon}</span>
-              <span className="flex-1 text-sm text-slate-300">{r.feature}</span>
-              <span className={`text-[0.6rem] uppercase tracking-widest ${statusColor[r.status]}`}>
-                {r.status}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-6 flex gap-6 text-xs text-slate-500">
-          <span className="flex items-center gap-1.5"><span className="text-emerald-400">●</span> Implemented</span>
-          <span className="flex items-center gap-1.5"><span className="text-amber-400">◐</span> Scaffolded</span>
-          <span className="flex items-center gap-1.5"><span className="text-slate-500">○</span> Planned</span>
-        </div>
+    <article className="rounded-[28px] border border-white/10 bg-slate-950/60 p-6 shadow-[0_24px_60px_rgba(2,6,23,0.28)] backdrop-blur">
+      <div className={`inline-flex rounded-2xl border p-3 ${accentClass[accent]}`}>
+        <Icon className="h-5 w-5" />
       </div>
-    </section>
+      <h3 className="mt-5 text-xl font-semibold text-white">{title}</h3>
+      <p className="mt-3 text-sm leading-7 text-slate-400">{text}</p>
+    </article>
   );
 }
 
-/* ── 10. Team ─────────────────────────────────────────────────────── */
-
-function TeamSection() {
+function MiniStat({ value, label, detail }) {
   return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-4xl text-center">
-        <SectionEyebrow>The Team</SectionEyebrow>
-        <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
-          Three builders. 24 hours.
-        </h2>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {[
-            { role: "Frontend", scope: "Dashboard, UI surfaces, map, visual polish" },
-            { role: "Backend", scope: "FastAPI, world state, scoring, integration" },
-            { role: "AI / Scenario", scope: "Prompt engineering, scenario data, demo narration" },
-          ].map((m) => (
-            <Card key={m.role}>
-              <p className="text-sm font-semibold text-cyan-300">{m.role}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{m.scope}</p>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── 11. CTA ──────────────────────────────────────────────────────── */
-
-function CTASection({ onEnter }) {
-  return (
-    <section className="px-6 py-32">
-      <div className="mx-auto max-w-3xl text-center">
-        <h2 className="text-4xl font-bold text-white md:text-5xl">
-          See the impossible, built.
-        </h2>
-        <p className="mt-6 text-base leading-8 text-slate-400">
-          From fragmented inputs to one explainable decision surface.
-          Enter the strategic console and experience the full pipeline.
-        </p>
-        <button
-          onClick={onEnter}
-          className="mt-10 rounded-full bg-cyan-400 px-10 py-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-        >
-          Enter SENTINEL →
-        </button>
-      </div>
-    </section>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════ */
-/*  PAGE ASSEMBLY                                                    */
-/* ══════════════════════════════════════════════════════════════════ */
-
-export default function LandingPage({ onNavigate }) {
-  const handleEnter = () => {
-    if (onNavigate) onNavigate("login");
-    else window.location.hash = "#login";
-  };
-
-  return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,#0c1a33_0%,#08111f_40%,#020617_100%)] text-white selection:bg-cyan-400/30">
-      {/* Top bar */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-white/5 bg-slate-950/80 px-6 py-4 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600" />
-          <span className="text-sm font-bold tracking-wide text-white">SENTINEL</span>
-          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[0.55rem] text-slate-500">
-            v2.6.5
-          </span>
-        </div>
-        <button
-          onClick={handleEnter}
-          className="rounded-full bg-cyan-400/10 border border-cyan-400/25 px-4 py-1.5 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/20"
-        >
-          Launch Console
-        </button>
-      </nav>
-
-      <HeroSection onEnter={handleEnter} />
-
-      {/* Divider */}
-      <div className="mx-auto h-px max-w-4xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-      <ProblemSection />
-      <WhatSection />
-      <ImpossibleSection />
-
-      <div className="mx-auto h-px max-w-4xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-      <SurfacesSection />
-      <FeaturesSection />
-      <TrustSection />
-
-      <div className="mx-auto h-px max-w-4xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-      <ArchSection />
-      <StatusSection />
-      <TeamSection />
-      <CTASection onEnter={handleEnter} />
-
-      {/* Footer */}
-      <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-slate-600">
-        SENTINEL · 24-Hour Hackathon · Built in 24 hours
-      </footer>
+    <div className="rounded-[24px] border border-white/10 bg-slate-950/55 p-5 text-left">
+      <div className="text-3xl font-semibold text-white">{value}</div>
+      <div className="mt-2 text-sm font-medium text-slate-200">{label}</div>
+      <div className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500">{detail}</div>
     </div>
   );
 }
+
+function LandingPage({ onNavigate }) {
+  const overviewRef = useRef(null);
+
+  const scrollToOverview = () => overviewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  return (
+    <div className="min-h-screen bg-[linear-gradient(180deg,#020816_0%,#07101f_45%,#020617_100%)] text-white">
+      <section className="relative min-h-[100svh] overflow-hidden border-b border-white/10 bg-[#020816]">
+        <div className="absolute inset-0">
+          <RobotFlyby />
+        </div>
+        <BackgroundPaperShaders className="opacity-55 mix-blend-screen" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,8,22,0.48),rgba(2,8,22,0.18)_26%,rgba(2,8,22,0.82)_72%,rgba(2,8,22,0.96))]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,255,0.22),transparent_24%),radial-gradient(circle_at_80%_25%,rgba(244,63,94,0.14),transparent_18%)]" />
+        <div className="absolute inset-0 sentinel-grid opacity-20" />
+
+        <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col px-6 py-6 lg:px-10">
+          <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/45 px-4 py-3 backdrop-blur">
+            <div className="flex items-center gap-3">
+              <Radar className="h-4 w-4 text-cyan-300" />
+              <span className="text-[0.72rem] uppercase tracking-[0.42em] text-cyan-200/85">SENTINEL</span>
+            </div>
+            <div className="hidden items-center gap-3 text-xs uppercase tracking-[0.26em] text-slate-400 md:flex">
+              <span>React + Vite + Tailwind</span>
+              <span>FastAPI + Pydantic</span>
+              <span>Claude API</span>
+            </div>
+          </div>
+
+          <div className="flex flex-1 items-center py-12 lg:py-20">
+            <div className="grid w-full items-end gap-10 lg:grid-cols-[minmax(0,1.14fr)_360px]">
+              <div className="max-w-5xl">
+                <div className="inline-flex items-center gap-3 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-[0.72rem] uppercase tracking-[0.28em] text-cyan-100">
+                  Situational Edge Intelligence for Networked Theater Operations & Logistics
+                </div>
+                <h1 className="mt-8 max-w-5xl text-4xl font-black uppercase leading-[0.92] text-white md:text-6xl xl:text-7xl">
+                  One explainable decision surface for fragmented mission inputs
+                </h1>
+                <p className="mt-6 max-w-3xl text-base font-medium leading-8 text-slate-200/88 md:text-xl">
+                  SENTINEL is an AI-native mission intelligence co-pilot that fuses multi-source operational inputs into
+                  one explainable decision surface with deterministic scoring, structured AI reasoning, response-path
+                  comparison, and consequence projection.
+                </p>
+                <div className="mt-10 flex flex-wrap gap-4">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.("console")}
+                    className="inline-flex items-center gap-2 rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                  >
+                    Strategic Console
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.("login")}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:border-cyan-300/40 hover:bg-white/10"
+                  >
+                    Login
+                    <LockKeyhole className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.("monitor")}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/70 px-6 py-3 text-sm font-semibold text-white transition hover:border-cyan-300/40 hover:bg-slate-900"
+                  >
+                    World Monitor
+                    <Map className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-[32px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_30px_90px_rgba(2,6,23,0.45)] backdrop-blur">
+                <p className="text-[0.72rem] uppercase tracking-[0.34em] text-cyan-300/70">Mission brief</p>
+                <div className="mt-5 space-y-4">
+                  {coreCapabilities.slice(0, 4).map((item) => (
+                    <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <div className="text-xs uppercase tracking-[0.28em] text-cyan-200">{item.title}</div>
+                      <p className="mt-2 text-sm leading-7 text-slate-300">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 rounded-2xl border border-emerald-400/15 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+                  Demo credentials: commander@sentinel.mil / sentinel2026
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 pb-8 md:grid-cols-2 xl:grid-cols-4">
+            {heroFacts.map((fact) => (
+              <MiniStat key={fact.label} value={fact.value} label={fact.label} detail={fact.detail} />
+            ))}
+          </div>
+
+          <div className="flex justify-center pb-2">
+            <button
+              type="button"
+              onClick={scrollToOverview}
+              className="hero-scroll inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/45 px-5 py-3 text-sm text-slate-100 backdrop-blur transition hover:border-cyan-300/35"
+            >
+              Scroll to overview
+              <ChevronRight className="h-4 w-4 rotate-90" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <Section
+        id="overview"
+        eyebrow="What Is SENTINEL"
+        title="Not a dashboard, not a chatbot, not a map"
+        description="SENTINEL is a fused operational picture that helps a commander understand what is happening, why it matters, what the options are, what the AI recommends, and what will likely happen next."
+      >
+        <div ref={overviewRef} className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+          <GridCard icon={Radar} title={coreCapabilities[0].title} text={coreCapabilities[0].text} accent="rose" />
+          <GridCard icon={BrainCircuit} title={coreCapabilities[1].title} text={coreCapabilities[1].text} accent="cyan" />
+          <GridCard icon={Workflow} title={coreCapabilities[2].title} text={coreCapabilities[2].text} accent="emerald" />
+          <GridCard icon={Layers3} title={coreCapabilities[3].title} text={coreCapabilities[3].text} accent="amber" />
+          <GridCard icon={ShieldCheck} title={coreCapabilities[4].title} text={coreCapabilities[4].text} accent="cyan" />
+        </div>
+      </Section>
+
+      <Section
+        id="why"
+        eyebrow="Why It Exists"
+        title="The product is built around three operational problems"
+        description="SENTINEL addresses fragmented intelligence, slow decision cycles, and opaque AI by fusing inputs into one picture, computing scores deterministically, and requiring the AI to explain every recommendation with grounded reasoning."
+      >
+        <div className="grid gap-5 lg:grid-cols-3">
+          <GridCard icon={Radar} title="Fragmented intelligence" text={problemStatements[0]} accent="rose" />
+          <GridCard icon={Workflow} title="Slow decision cycles" text={problemStatements[1]} accent="amber" />
+          <GridCard icon={BrainCircuit} title="Opaque AI" text={problemStatements[2]} accent="cyan" />
+        </div>
+      </Section>
+
+      <Section
+        id="surfaces"
+        eyebrow="Product Surfaces"
+        title="Three user-facing surfaces with distinct roles"
+        description="The README defines the product as a landing page for judges, a SQLite-backed login page, and the core strategic console."
+      >
+        <div className="grid gap-5 lg:grid-cols-3">
+          {surfaces.map((surface, index) => (
+            <GridCard
+              key={surface.title}
+              icon={[Layers3, LockKeyhole, Radar][index]}
+              title={surface.title}
+              text={surface.text}
+              accent={index === 0 ? "cyan" : index === 1 ? "amber" : "emerald"}
+            />
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        id="loop"
+        eyebrow="Core System Loop"
+        title="The decision loop runs from intake to briefing"
+        description="The loop is phase-driven: each advance triggers state update, score recomputation, AI reasoning, and UI refresh."
+      >
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          {loopSteps.map((step, index) => (
+            <div key={step.label} className="rounded-[26px] border border-white/10 bg-slate-950/60 p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-400 text-sm font-bold text-slate-950">
+                {index + 1}
+              </div>
+              <div className="mt-4 text-xs uppercase tracking-[0.28em] text-cyan-200">{step.label}</div>
+              <p className="mt-3 text-sm leading-7 text-slate-300">{step.text}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        id="features"
+        eyebrow="Build Status"
+        title="Implemented, scaffolded, and planned work"
+        description="The README already separates what is implemented today from what is scaffolded and what remains planned."
+      >
+        <div className="grid gap-5 xl:grid-cols-3">
+          {featureGroups.map((group) => (
+            <div key={group.title} className="rounded-[30px] border border-white/10 bg-slate-950/60 p-6 shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
+              <p className="text-[0.72rem] uppercase tracking-[0.34em] text-cyan-300/70">{group.title}</p>
+              <div className="mt-5 space-y-3">
+                {group.items.map((item) => (
+                  <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-7 text-slate-300">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        id="architecture"
+        eyebrow="Technical Architecture"
+        title="Frontend, backend, AI, and data are all explicit in the repo"
+        description="The README defines the stack, the main system boundaries, and the backend routes that support the product."
+      >
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 md:grid-cols-2">
+            {architectureLayers.map((layer, index) => (
+              <GridCard
+                key={layer.title}
+                icon={[Layers3, Workflow, BrainCircuit, ShieldCheck][index]}
+                title={layer.title}
+                text={layer.text}
+                accent={index % 2 === 0 ? "cyan" : "emerald"}
+              />
+            ))}
+          </div>
+
+          <div className="rounded-[30px] border border-white/10 bg-slate-950/60 p-6 shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
+            <p className="text-[0.72rem] uppercase tracking-[0.34em] text-cyan-300/70">Backend API Routes</p>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {apiRoutes.map((route) => (
+                <div key={route} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 font-mono text-sm text-slate-200">
+                  {route}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <section className="px-6 pb-20 lg:px-10">
+        <div className="mx-auto max-w-7xl rounded-[36px] border border-cyan-400/15 bg-[linear-gradient(135deg,rgba(8,47,73,0.95),rgba(2,6,23,0.98))] p-8 shadow-[0_30px_90px_rgba(2,6,23,0.42)] lg:flex lg:items-center lg:justify-between lg:gap-12">
+          <div className="max-w-3xl">
+            <p className="text-[0.72rem] uppercase tracking-[0.34em] text-cyan-300/70">Build The Impossible</p>
+            <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
+              Fragmented inputs to one operational picture, explainable reasoning, and projected outcome
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-300">
+              The README frames the core challenge as compression: incident intake, threat assessment, response
+              planning, and consequence forecasting brought into one coherent product surface in 24 hours.
+            </p>
+          </div>
+          <div className="mt-8 flex flex-wrap gap-4 lg:mt-0">
+            <button
+              type="button"
+              onClick={() => onNavigate?.("console")}
+              className="inline-flex items-center gap-2 rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+            >
+              Strategic Console
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate?.("login")}
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:border-cyan-300/40"
+            >
+              Login
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate?.("monitor")}
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/45 px-6 py-3 text-sm font-semibold text-white transition hover:border-cyan-300/40 hover:bg-slate-900"
+            >
+              World Monitor
+              <Map className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default LandingPage;

@@ -4,6 +4,8 @@ import WorldMonitorGlobe from "./components/WorldMonitorGlobe";
 import WorldMonitorMap from "./components/WorldMonitorMap";
 import TheatreBoard from "./components/TheatreBoard";
 import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
+import { DemoPage as LoginPage } from "@/components/ui/login-page";
+import LandingPage from "./pages/LandingPage";
 import { useSentinelState } from "./hooks/useSentinelState";
 import { useLandingData } from "./hooks/useLandingData";
 import { getPromptPlaceholders, executePrompt, loginUser, logoutUser } from "./api/client";
@@ -209,7 +211,7 @@ function buildConsoleModel(incident, selectedPath) {
 
 function getSurfaceFromHash() {
   const value = window.location.hash.replace(/^#\//, "");
-  if (value === "login" || value === "console" || value === "chat") {
+  if (value === "login" || value === "console" || value === "chat" || value === "monitor") {
     return value;
   }
   return "landing";
@@ -345,6 +347,7 @@ function TopMapStats() {
 }
 
 function LandingSurface({
+  onBackToLanding,
   onEnterConsole,
   onOpenLogin,
   onOpenAssistant,
@@ -431,6 +434,9 @@ function LandingSurface({
         <div className="header-right">
           <button type="button" className="wm-count-pill">
             🔔 25
+          </button>
+          <button type="button" className="copy-link-btn" onClick={onBackToLanding}>
+            Landing
           </button>
           <button type="button" className="search-btn" onClick={onOpenAssistant}>
             <kbd>⌘K</kbd> Search
@@ -853,92 +859,16 @@ function LoginSurface({ onLogin, onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#13294c_0%,#08111f_50%,#020617_100%)] px-6 py-10 text-white lg:px-8">
-      <div className="mx-auto grid max-w-[1180px] gap-10 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-8 shadow-[0_0_60px_rgba(2,6,23,0.5)] backdrop-blur">
-          <p className="text-[0.68rem] uppercase tracking-[0.34em] text-cyan-300/80">Secure Entry</p>
-          <h1 className="mt-4 text-4xl font-semibold text-white">Access SENTINEL</h1>
-          <p className="mt-4 text-sm leading-7 text-slate-300">
-            Authenticated entry for operators and analysts. Use your credentials to access the strategic console.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            <input
-              className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-4 text-sm text-white outline-none transition focus:border-cyan-300/40"
-              placeholder="Operator email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <input
-              className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-4 text-sm text-white outline-none transition focus:border-cyan-300/40"
-              placeholder="Access token"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            {error && (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-950/40 px-4 py-3 text-sm text-rose-300">
-                {error}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
-              >
-                {loading ? "Authenticating…" : "Continue to console"}
-              </button>
-              <button
-                type="button"
-                onClick={onBack}
-                className="rounded-full border border-white/10 px-6 py-3 text-sm text-slate-200 transition hover:border-cyan-300/35"
-              >
-                Back
-              </button>
-            </div>
-          </form>
-
-          <p className="mt-6 text-xs text-slate-500">Demo: commander@sentinel.mil / sentinel2026</p>
-        </div>
-
-        <div className="grid gap-5">
-          <div className="rounded-[32px] border border-white/10 bg-slate-950/55 p-8 backdrop-blur">
-            <p className="text-[0.68rem] uppercase tracking-[0.34em] text-cyan-300/80">Product promise</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">One coherent incident-to-decision path</h2>
-            <div className="mt-6 grid gap-3 text-sm leading-7 text-slate-300">
-              {[
-                "Capture the incident with structured fields.",
-                "Explain likely intent and why the site matters.",
-                "Compare strategic response paths.",
-                "Surface trust, assumptions, and briefing output.",
-              ].map((item) => (
-                <div key={item} className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-4">
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-          <StrategicGlobe
-            title="Operator preview"
-            subtitle="The main console uses the globe as an analysis surface, not a decorative widget."
-            incidentPoint={{ lat: 34.5261, lon: 74.2612 }}
-            markers={GLOBE_MARKERS}
-            arcs={[
-              {
-                id: "login-arc-1",
-                start: { lat: 34.5261, lon: 74.2612 },
-                end: { lat: 28.6139, lon: 77.209 },
-                color: "#22d3ee",
-              },
-            ]}
-          />
-        </div>
-      </div>
-    </div>
+    <LoginPage
+      email={email}
+      password={password}
+      error={error}
+      loading={loading}
+      onEmailChange={setEmail}
+      onPasswordChange={setPassword}
+      onSubmit={handleSubmit}
+      onBack={onBack}
+    />
   );
 }
 
@@ -1480,8 +1410,21 @@ function App() {
   );
 
   if (surface === "landing") {
+    return <LandingPage onNavigate={navigate} />;
+  }
+
+  if (surface === "login") {
+    return <LoginSurface onLogin={handleLogin} onBack={() => navigate("landing")} />;
+  }
+
+  if (surface === "chat") {
+    return <ChatSurface onBack={() => navigate("landing")} onOpenConsole={() => navigate("console")} />;
+  }
+
+  if (surface === "monitor") {
     return (
       <LandingSurface
+        onBackToLanding={() => navigate("landing")}
         onEnterConsole={() => navigate("console")}
         onOpenLogin={() => navigate("login")}
         onOpenAssistant={() => navigate("chat")}
@@ -1496,14 +1439,6 @@ function App() {
         toggleLayer={toggleLayer}
       />
     );
-  }
-
-  if (surface === "login") {
-    return <LoginSurface onLogin={handleLogin} onBack={() => navigate("landing")} />;
-  }
-
-  if (surface === "chat") {
-    return <ChatSurface onBack={() => navigate("landing")} onOpenConsole={() => navigate("console")} />;
   }
 
   return (
