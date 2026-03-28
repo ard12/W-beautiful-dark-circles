@@ -373,16 +373,3 @@ VITE_BACKEND_URL=http://localhost:8000
 - If everything breaks → play the backup video recording
 
 ---
-
-## Stage 1 Presentation Cheat Sheet
-
-**Opening:**
-> "SENTINEL is an AI-native mission intelligence co-pilot. It takes fragmented operational data, fuses it into one picture, reasons about threats, recommends actions, and projects outcomes. Think of it as a command-level decision surface powered by explainable AI."
-
-**Three key points:**
-1. One fused operational picture — not scattered tools
-2. AI that explains *why*, not just *what* — every recommendation has grounded reasoning and provenance
-3. Chat → console continuity — incident entered in the chatbot immediately drives the console view
-
-**Closing line:**
-> "SENTINEL turns fragmented inputs into one explainable decision surface. AI that explains why. Not just what."
