@@ -1921,8 +1921,12 @@ function App() {
   }, [responsePaths]);
 
   // Re-fetch state when navigating to console (picks up chat-persisted state)
+  const previousSurfaceRef = useRef(surface);
   useEffect(() => {
-    if (surface === "console" && !monitorHandoff) {
+    const previousSurface = previousSurfaceRef.current;
+    previousSurfaceRef.current = surface;
+
+    if (surface === "console" && previousSurface !== "console" && !monitorHandoff) {
       fetchState();
     }
   }, [surface, fetchState, monitorHandoff]);
