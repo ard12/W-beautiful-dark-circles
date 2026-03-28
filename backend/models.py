@@ -41,7 +41,21 @@ class AlertState(BaseModel):
     linked_threat_id: Optional[str] = None
 
 
-class Recommendation(BaseModel):
+class ConfidenceDriver(BaseModel):
+    label: str
+    score: int = Field(ge=0, le=100)
+    reason: str
+    impact: Literal["supports", "limits"]
+
+
+class ProvenanceMixin(BaseModel):
+    based_on_threat_ids: List[str] = Field(default_factory=list)
+    based_on_unit_ids: List[str] = Field(default_factory=list)
+    based_on_event_log: List[str] = Field(default_factory=list)
+    confidence_drivers: List[ConfidenceDriver] = Field(default_factory=list)
+
+
+class Recommendation(ProvenanceMixin):
     action_id: str
     action: str
     priority: Literal["low", "medium", "high", "critical"]
@@ -57,7 +71,7 @@ class ScoreCard(BaseModel):
     confidence_score: float = Field(ge=0, le=100)
 
 
-class ReasoningOutput(BaseModel):
+class ReasoningOutput(ProvenanceMixin):
     assessment_summary: str
     key_risks: List[str]
     recommendations: List[Recommendation]
@@ -65,13 +79,13 @@ class ReasoningOutput(BaseModel):
     projected_outcome: str
 
 
-class QueryResponse(BaseModel):
+class QueryResponse(ProvenanceMixin):
     answer: str
     supporting_points: List[str]
     confidence: float = Field(ge=0, le=1)
 
 
-class SitrepOutput(BaseModel):
+class SitrepOutput(ProvenanceMixin):
     situation: str
     threats: str
     friendly_status: str
@@ -79,7 +93,7 @@ class SitrepOutput(BaseModel):
     projected_outlook: str
 
 
-class ProjectionOutput(BaseModel):
+class ProjectionOutput(ProvenanceMixin):
     projected_outcome: str
     expected_changes: List[str]
     new_risks: List[str]
@@ -232,4 +246,3 @@ class FullReportOutput(BaseModel):
     reasoning: ReasoningOutput
     sitrep: SitrepOutput
     scores: dict
-

@@ -9,6 +9,7 @@ RULES:
 - Use only the provided state data. Do not invent facts.
 - Reference specific unit names, grid references, threat indicators, and resource levels.
 - Be operationally precise and actionable.
+- Include provenance for the SITREP: threat IDs, unit IDs, recent event log lines, and confidence drivers.
 - Return ONLY valid JSON matching this exact schema, no other text:
 
 {
@@ -16,5 +17,16 @@ RULES:
   "threats": "string",
   "friendly_status": "string",
   "recommended_action": "string",
-  "projected_outlook": "string"
+  "projected_outlook": "string",
+  "based_on_threat_ids": ["string"],
+  "based_on_unit_ids": ["string"],
+  "based_on_event_log": ["string"],
+  "confidence_drivers": [
+    {
+      "label": "string",
+      "score": 0,
+      "reason": "string",
+      "impact": "supports|limits"
+    }
+  ]
 }

@@ -140,6 +140,66 @@ const GLOBE_MARKERS = [
   { id: "north-4", label: "Financial relay", lat: 19.076, lon: 72.8777, color: "#34d399", scale: 0.86 },
 ];
 
+const MONITOR_HOTSPOTS = [
+  {
+    id: "monitor-kupwara-relay",
+    title: "Northern radar relay strike",
+    location: "Kupwara sector",
+    ownerCountry: "India",
+    actor: "Pakistan-backed proxy network",
+    attackType: "Drone attack",
+    severity: 74,
+    description: "Forward radar relay degraded after a stand-off drone strike. Limited casualties, high signaling value, immediate uncertainty over follow-on activity.",
+    lat: 34.5261,
+    lon: 74.2612,
+    source: "Border ISR mesh",
+    tags: ["BORDER", "ISR", "DRONES"],
+  },
+  {
+    id: "monitor-gwadar-cyber",
+    title: "Gwadar logistics port disruption",
+    location: "Gwadar",
+    ownerCountry: "Pakistan",
+    actor: "State-linked cyber unit",
+    attackType: "Cyber disruption",
+    severity: 61,
+    description: "Port scheduling and customs systems degraded by a coordinated intrusion, raising concern over wider supply-chain signaling.",
+    lat: 25.1264,
+    lon: 62.3228,
+    source: "Port authority telemetry",
+    tags: ["PORT", "CYBER", "SUPPLY"],
+  },
+  {
+    id: "monitor-tehran-air",
+    title: "Integrated air-defense probing",
+    location: "Tehran air corridor",
+    ownerCountry: "Iran",
+    actor: "Regional strike package",
+    attackType: "Missile strike",
+    severity: 83,
+    description: "Layered missile and decoy activity probed response timing around the capital's air-defense belt, indicating a coercive signaling campaign.",
+    lat: 35.6895,
+    lon: 51.389,
+    source: "Air-defense warning net",
+    tags: ["AIR", "MISSILE", "SIGNALING"],
+  },
+];
+
+function hotspotToIncident(hotspot) {
+  return {
+    title: hotspot.title,
+    location: hotspot.location,
+    ownerCountry: hotspot.ownerCountry,
+    actor: hotspot.actor,
+    attackType: hotspot.attackType,
+    severity: hotspot.severity,
+    description: hotspot.description,
+    time: new Date().toISOString().slice(0, 16),
+    lat: hotspot.lat,
+    lon: hotspot.lon,
+  };
+}
+
 function clamp(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -175,6 +235,22 @@ function buildConsoleModel(incident, selectedPath) {
       { label: "Model certainty", value: intentConfidence },
       { label: "Analyst agreement", value: 69 },
     ],
+    evidenceTrace: {
+      threatIds: [],
+      unitIds: [],
+      eventLog: [
+        `${incident.title || "Incident"} reported at ${incident.location || "current theater"}.`,
+        `Severity assessed at ${severity}/100 with ${incident.attackType || "attack"} profile.`,
+      ],
+      confidenceDrivers: [
+        {
+          label: "Threat-profile match",
+          score: intentConfidence,
+          reason: `${incident.attackType || "Selected attack type"} aligns with the active intent profile and site lens.`,
+          impact: "supports",
+        },
+      ],
+    },
   };
 
   return {
@@ -283,6 +359,305 @@ function ScorePill({ score }) {
   );
 }
 
+const COUNTERFACTUAL_METRICS = [
+  { key: "deterrence", label: "Deterrence", higherIsBetter: true },
+  { key: "escalationRisk", label: "Escalation risk", higherIsBetter: false },
+  { key: "civilianImpact", label: "Civilian impact", higherIsBetter: false },
+  { key: "strategicStability", label: "Strategic stability", higherIsBetter: true },
+];
+
+function buildScoreLookup(scores) {
+  return scores.reduce((lookup, score) => {
+    lookup[score.label.toLowerCase()] = score.value;
+    return lookup;
+  }, {});
+}
+
+function computeDeterrenceScore(path, scoreLookup) {
+  const titleSummary = `${path.title} ${path.summary}`.toLowerCase();
+  let postureBias = 0;
+
+  if (/calibrated|response|strike|reinforcement/.test(titleSummary)) postureBias += 12;
+  if (/surveillance|surge|watch|isr/.test(titleSummary)) postureBias += 6;
+  if (/restraint|observe|diplomatic/.test(titleSummary)) postureBias -= 6;
+
+  return clamp(
+    44
+      + path.riskBias * 0.42
+      + (scoreLookup["strategic stability"] || 0) * 0.18
+      - (scoreLookup["diplomatic cost"] || 0) * 0.12
+      - (scoreLookup["escalation risk"] || 0) * 0.08
+      + postureBias,
+  );
+}
+
+function buildCounterfactualOption(incident, path) {
+  const model = buildConsoleModel(incident, path);
+  const scoreLookup = buildScoreLookup(model.scores);
+
+  return {
+    id: path.id,
+    title: path.title,
+    summary: path.summary,
+    ring: path.ring,
+    projectedOutcome: model.implicationSummary,
+    metrics: {
+      deterrence: computeDeterrenceScore(path, scoreLookup),
+      escalationRisk: scoreLookup["escalation risk"] || 0,
+      civilianImpact: scoreLookup["civilian impact"] || 0,
+      strategicStability: scoreLookup["strategic stability"] || 0,
+    },
+  };
+}
+
+function pickMetricLeader(options, metricKey, direction) {
+  return options.reduce((best, option) => {
+    if (!best) return option;
+    if (direction === "max") {
+      return option.metrics[metricKey] > best.metrics[metricKey] ? option : best;
+    }
+    return option.metrics[metricKey] < best.metrics[metricKey] ? option : best;
+  }, null);
+}
+
+function formatSignedDelta(value) {
+  if (value === 0) return "0";
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function buildDeltaTone(metric, delta) {
+  if (delta === 0) return "border-white/10 bg-white/5 text-slate-300";
+  const favorable = metric.higherIsBetter ? delta > 0 : delta < 0;
+  return favorable
+    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+    : "border-rose-400/20 bg-rose-400/10 text-rose-100";
+}
+
+function buildCounterfactualCompareData(incident, responsePaths, selectedPath) {
+  const options = responsePaths.map((path) => buildCounterfactualOption(incident, path));
+  const selectedOption = options.find((option) => option.id === selectedPath.id) || options[0];
+
+  const leaders = {
+    deterrence: pickMetricLeader(options, "deterrence", "max"),
+    stability: pickMetricLeader(options, "strategicStability", "max"),
+    civilianRisk: pickMetricLeader(options, "civilianImpact", "min"),
+  };
+
+  const badgeMap = new Map();
+  const addBadge = (optionId, label) => {
+    if (!optionId) return;
+    badgeMap.set(optionId, [...(badgeMap.get(optionId) || []), label]);
+  };
+
+  addBadge(leaders.deterrence?.id, "Best for deterrence");
+  addBadge(leaders.stability?.id, "Best for stability");
+  addBadge(leaders.civilianRisk?.id, "Best for civilian risk");
+
+  const compareOrder = [];
+  const pushUnique = (option) => {
+    if (option && !compareOrder.some((entry) => entry.id === option.id)) {
+      compareOrder.push(option);
+    }
+  };
+
+  pushUnique(selectedOption);
+  pushUnique(leaders.deterrence);
+  pushUnique(leaders.stability);
+  pushUnique(leaders.civilianRisk);
+
+  options
+    .slice()
+    .sort((left, right) => {
+      const stabilityGap = right.metrics.strategicStability - left.metrics.strategicStability;
+      if (stabilityGap !== 0) return stabilityGap;
+      return left.metrics.civilianImpact - right.metrics.civilianImpact;
+    })
+    .forEach(pushUnique);
+
+  const selectedMetrics = selectedOption?.metrics || {};
+  const compareCards = compareOrder.slice(0, 3).map((option) => ({
+    ...option,
+    badges: [
+      ...(option.id === selectedOption?.id ? ["Selected path"] : []),
+      ...(badgeMap.get(option.id) || []),
+    ],
+    deltas: Object.fromEntries(
+      COUNTERFACTUAL_METRICS.map((metric) => [
+        metric.key,
+        option.metrics[metric.key] - (selectedMetrics[metric.key] || 0),
+      ]),
+    ),
+  }));
+
+  return {
+    compareCards,
+    leaders,
+    selectedOption,
+  };
+}
+
+function CounterfactualCompareSection({ compareData }) {
+  const { compareCards, leaders, selectedOption } = compareData;
+
+  return (
+    <Section
+      eyebrow="Counterfactual"
+      title="Compare three response paths"
+      actions={
+        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[0.65rem] uppercase tracking-[0.24em] text-slate-300">
+          Delta vs {selectedOption?.title || "selected path"}
+        </div>
+      }
+    >
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full border border-rose-400/15 bg-rose-400/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-rose-100">
+          Best for deterrence: {leaders.deterrence?.title}
+        </span>
+        <span className="rounded-full border border-emerald-400/15 bg-emerald-400/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-emerald-100">
+          Best for stability: {leaders.stability?.title}
+        </span>
+        <span className="rounded-full border border-violet-400/15 bg-violet-400/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-violet-100">
+          Best for civilian risk: {leaders.civilianRisk?.title}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 2xl:grid-cols-3">
+        {compareCards.map((option) => (
+          <article
+            key={option.id}
+            className={`rounded-[24px] border p-4 ${
+              option.id === selectedOption?.id
+                ? "border-cyan-300/45 bg-cyan-400/8"
+                : "border-white/10 bg-slate-900/65"
+            }`}
+          >
+            <div className="flex flex-wrap gap-2">
+              {option.badges.map((badge) => (
+                <span
+                  key={`${option.id}-${badge}`}
+                  className={`rounded-full px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] ${
+                    badge === "Selected path"
+                      ? "border border-cyan-300/25 bg-cyan-400/12 text-cyan-100"
+                      : "border border-white/10 bg-white/5 text-slate-200"
+                  }`}
+                >
+                  {badge}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-base font-semibold text-white">{option.title}</h4>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">{option.summary}</p>
+                </div>
+                <span className="rounded-full border border-white/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-cyan-200">
+                  {option.ring}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-4">
+              <p className="text-[0.68rem] uppercase tracking-[0.28em] text-cyan-300/80">Projected outcome</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{option.projectedOutcome}</p>
+            </div>
+
+            <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
+              {COUNTERFACTUAL_METRICS.map((metric, metricIndex) => (
+                <div
+                  key={`${option.id}-${metric.key}`}
+                  className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 ${
+                    metricIndex !== COUNTERFACTUAL_METRICS.length - 1 ? "border-b border-white/10" : ""
+                  }`}
+                >
+                  <div>
+                    <p className="text-[0.68rem] uppercase tracking-[0.24em] text-slate-400">{metric.label}</p>
+                    <p className="mt-2 text-2xl font-semibold text-white">{option.metrics[metric.key]}</p>
+                  </div>
+                  <span
+                    className={`rounded-full border px-3 py-1 text-sm font-medium ${buildDeltaTone(
+                      metric,
+                      option.deltas[metric.key],
+                    )}`}
+                  >
+                    {formatSignedDelta(option.deltas[metric.key])}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function uniqueItems(values) {
+  return [...new Set((values || []).filter(Boolean))];
+}
+
+function collectRecommendationProvenance(recommendations = []) {
+  const confidenceDrivers = [];
+  const seenDriverLabels = new Set();
+
+  recommendations.forEach((recommendation) => {
+    (recommendation.confidence_drivers || []).forEach((driver) => {
+      if (!driver?.label || seenDriverLabels.has(driver.label)) return;
+      seenDriverLabels.add(driver.label);
+      confidenceDrivers.push(driver);
+    });
+  });
+
+  return {
+    threatIds: uniqueItems(recommendations.flatMap((recommendation) => recommendation.based_on_threat_ids || [])),
+    unitIds: uniqueItems(recommendations.flatMap((recommendation) => recommendation.based_on_unit_ids || [])),
+    eventLog: uniqueItems(recommendations.flatMap((recommendation) => recommendation.based_on_event_log || [])),
+    confidenceDrivers,
+  };
+}
+
+function mergeConfidenceDrivers(primary = [], secondary = []) {
+  const merged = [];
+  const seen = new Set();
+  [...primary, ...secondary].forEach((driver) => {
+    if (!driver?.label || seen.has(driver.label)) return;
+    seen.add(driver.label);
+    merged.push(driver);
+  });
+  return merged;
+}
+
+function buildChatPrefill(placeholders, incident) {
+  const values = {
+    attacked_site: incident.title || incident.attacked_site || "",
+    location: incident.location || "",
+    owner_country: incident.ownerCountry || incident.owner_country || "",
+    actor: incident.actor || "",
+    attack_type: incident.attackType || incident.attack_type || "",
+    severity: Number(incident.severity) || 0,
+    description: incident.description || "",
+    latitude: incident.lat ?? incident.latitude ?? null,
+    longitude: incident.lon ?? incident.longitude ?? null,
+  };
+
+  const placeholderValues = placeholders.reduce((accumulator, placeholder) => {
+    if (values[placeholder.key] !== undefined && values[placeholder.key] !== null) {
+      accumulator[placeholder.key] = values[placeholder.key];
+    }
+    return accumulator;
+  }, {});
+
+  if (values.latitude !== null) {
+    placeholderValues.latitude = values.latitude;
+  }
+  if (values.longitude !== null) {
+    placeholderValues.longitude = values.longitude;
+  }
+
+  return placeholderValues;
+}
+
 function LandingPanel({ title, count, children, className = "", actions }) {
   return (
     <article className={`panel ${className}`.trim()}>
@@ -351,6 +726,8 @@ function LandingSurface({
   onEnterConsole,
   onOpenLogin,
   onOpenAssistant,
+  onHotspotConsole,
+  onHotspotAssistant,
   incident,
   incidentPoint,
   selectedResponsePath,
@@ -360,6 +737,9 @@ function LandingSurface({
   globeArcs,
   activeLayerIds,
   toggleLayer,
+  monitorMarkers,
+  selectedMonitorHotspot,
+  onSelectMonitorHotspot,
 }) {
   const clock = useHeaderClock();
   const { headlines, marketSnapshot } = useLandingData();
@@ -509,10 +889,59 @@ function LandingSurface({
             </div>
 
             {mapMode === "globe" ? (
-              <WorldMonitorGlobe incidentPoint={incidentPoint} markers={GLOBE_MARKERS} arcs={globeArcs} />
+              <WorldMonitorGlobe
+                incidentPoint={incidentPoint}
+                markers={monitorMarkers}
+                arcs={globeArcs}
+                onMarkerClick={onSelectMonitorHotspot}
+              />
             ) : (
-              <WorldMonitorMap incidentPoint={incidentPoint} markers={GLOBE_MARKERS} activeLayerIds={activeLayerIds} />
+              <WorldMonitorMap
+                incidentPoint={incidentPoint}
+                markers={monitorMarkers}
+                activeLayerIds={activeLayerIds}
+                onMarkerClick={onSelectMonitorHotspot}
+              />
             )}
+
+            {selectedMonitorHotspot ? (
+              <div className="absolute bottom-6 left-6 z-20 max-w-[380px] rounded-[28px] border border-white/10 bg-slate-950/88 p-5 shadow-[0_24px_60px_rgba(2,6,23,0.45)] backdrop-blur">
+                <div className="flex flex-wrap gap-2">
+                  {(selectedMonitorHotspot.tags || []).map((tag) => (
+                    <span
+                      key={`${selectedMonitorHotspot.id}-${tag}`}
+                      className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.24em] text-cyan-100"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <p className="text-[0.68rem] uppercase tracking-[0.28em] text-slate-400">Hotspot handoff</p>
+                  <h3 className="mt-2 text-lg font-semibold text-white">{selectedMonitorHotspot.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    {selectedMonitorHotspot.location} · {selectedMonitorHotspot.source}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">{selectedMonitorHotspot.description}</p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onHotspotConsole(selectedMonitorHotspot)}
+                    className="rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                  >
+                    Open in console
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onHotspotAssistant(selectedMonitorHotspot)}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-cyan-300/35 hover:bg-white/10"
+                  >
+                    Send to copilot
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <TopMapStats />
 
@@ -567,8 +996,19 @@ function LandingSurface({
             </div>
             <div className="wm-webcam-grid">
               {WEBCAM_TILES.map((tile, index) => (
-                <div key={tile} className={`wm-webcam-tile wm-webcam-tile--${index + 1}`.trim()}>
-                  <span>{tile}</span>
+                <div key={tile.id} className={`wm-webcam-tile wm-webcam-tile--${index + 1}`.trim()}>
+                  {tile.embedUrl ? (
+                    <iframe
+                      className="wm-webcam-tile__video"
+                      src={tile.embedUrl}
+                      title={`${tile.label} live webcam`}
+                      loading="lazy"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : null}
+                  <span>{tile.label}</span>
                 </div>
               ))}
             </div>
@@ -599,6 +1039,34 @@ function LandingSurface({
                   </div>
                 </div>
               ))}
+            </div>
+          </LandingPanel>
+
+          <LandingPanel title="Operational Hotspots" count={`${MONITOR_HOTSPOTS.length} LIVE`} className="wm-home-panel wm-home-panel--insights">
+            <div className="wm-panel-note">
+              Click a hotspot to prefill SENTINEL with an incident package, then jump straight into the console or copilot.
+            </div>
+            <div className="wm-correlation-stack">
+              {MONITOR_HOTSPOTS.map((hotspot) => {
+                const active = selectedMonitorHotspot?.id === hotspot.id;
+                return (
+                  <button
+                    key={hotspot.id}
+                    type="button"
+                    onClick={() => onSelectMonitorHotspot(hotspot)}
+                    className={`wm-correlation-card text-left transition ${active ? "border-cyan-300/35 bg-cyan-400/10" : ""}`}
+                  >
+                    <div className="wm-correlation-card__top">
+                      <strong>{hotspot.title}</strong>
+                      <span>{hotspot.severity}</span>
+                    </div>
+                    <div className="wm-country-row__bar">
+                      <div style={{ width: `${hotspot.severity}%` }} />
+                    </div>
+                    <p>{hotspot.location} · {hotspot.actor}</p>
+                  </button>
+                );
+              })}
             </div>
           </LandingPanel>
         </section>
@@ -872,7 +1340,7 @@ function LoginSurface({ onLogin, onBack }) {
   );
 }
 
-function ChatSurface({ onBack, onOpenConsole }) {
+function ChatSurface({ onBack, onOpenConsole, prefilledIncident }) {
   const [placeholders, setPlaceholders] = useState([]);
   const [answers, setAnswers] = useState({});
   const [currentStep, setCurrentStep] = useState(0);
@@ -882,6 +1350,7 @@ function ChatSurface({ onBack, onOpenConsole }) {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const chatEndRef = useRef(null);
+  const lastPrefillKeyRef = useRef(null);
 
   // Fetch placeholders from backend on mount
   useEffect(() => {
@@ -914,6 +1383,33 @@ function ChatSurface({ onBack, onOpenConsole }) {
         ]);
       });
   }, []);
+
+  useEffect(() => {
+    if (!prefilledIncident || placeholders.length === 0) return;
+    if (lastPrefillKeyRef.current === prefilledIncident.key) return;
+
+    const prefilledAnswers = buildChatPrefill(placeholders, prefilledIncident.incident);
+    setAnswers(prefilledAnswers);
+    setCurrentStep(placeholders.length);
+    setDraft("");
+    setReport(null);
+    setError(null);
+    setMessages([
+      {
+        role: "assistant",
+        text: "Monitor handoff received. I prefilled the incident package from the selected hotspot, so you can generate the report immediately or adjust the details first.",
+      },
+      {
+        role: "assistant",
+        text: `${prefilledIncident.hotspot.title} from ${prefilledIncident.hotspot.source} is loaded and ready for analysis.`,
+      },
+      {
+        role: "assistant",
+        text: "All placeholders filled. Click \"Generate Report\" to run AI analysis on this incident.",
+      },
+    ]);
+    lastPrefillKeyRef.current = prefilledIncident.key;
+  }, [prefilledIncident, placeholders]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -1184,8 +1680,70 @@ function ChatSurface({ onBack, onOpenConsole }) {
                               <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", color: "rgba(34,211,238,0.8)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{rec.priority}</span>
                             </div>
                             <p style={{ fontSize: 12, color: "rgba(203,213,225,0.7)", marginTop: 6 }}>{rec.rationale}</p>
+                            {(rec.based_on_threat_ids?.length > 0 || rec.based_on_unit_ids?.length > 0) && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                                {(rec.based_on_threat_ids || []).map((threatId) => (
+                                  <span key={`${rec.action_id}-${threatId}`} style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(244,63,94,0.15)", background: "rgba(244,63,94,0.08)", color: "rgba(253,164,175,0.92)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                                    Threat {threatId}
+                                  </span>
+                                ))}
+                                {(rec.based_on_unit_ids || []).map((unitId) => (
+                                  <span key={`${rec.action_id}-${unitId}`} style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(34,211,238,0.15)", background: "rgba(34,211,238,0.08)", color: "rgba(165,243,252,0.92)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                                    Unit {unitId}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {(report.reasoning.based_on_threat_ids?.length > 0
+                      || report.reasoning.based_on_unit_ids?.length > 0
+                      || report.reasoning.based_on_event_log?.length > 0
+                      || report.reasoning.confidence_drivers?.length > 0) && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(148,163,184,0.75)", marginBottom: 8 }}>Evidence Trace</div>
+
+                        {(report.reasoning.based_on_threat_ids?.length > 0 || report.reasoning.based_on_unit_ids?.length > 0) && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                            {(report.reasoning.based_on_threat_ids || []).map((threatId) => (
+                              <span key={`reasoning-threat-${threatId}`} style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(244,63,94,0.15)", background: "rgba(244,63,94,0.08)", color: "rgba(253,164,175,0.92)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                                Threat {threatId}
+                              </span>
+                            ))}
+                            {(report.reasoning.based_on_unit_ids || []).map((unitId) => (
+                              <span key={`reasoning-unit-${unitId}`} style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, border: "1px solid rgba(34,211,238,0.15)", background: "rgba(34,211,238,0.08)", color: "rgba(165,243,252,0.92)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                                Unit {unitId}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {report.reasoning.based_on_event_log?.length > 0 && (
+                          <div style={{ display: "grid", gap: 6, marginBottom: 10 }}>
+                            {report.reasoning.based_on_event_log.map((eventLine, index) => (
+                              <div key={`reasoning-event-${index}`} style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", padding: "10px 12px", fontSize: 12, color: "rgba(203,213,225,0.8)" }}>
+                                {eventLine}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {report.reasoning.confidence_drivers?.length > 0 && (
+                          <div style={{ display: "grid", gap: 8 }}>
+                            {report.reasoning.confidence_drivers.map((driver, index) => (
+                              <div key={`reasoning-driver-${index}`} style={{ borderRadius: 12, border: `1px solid ${driver.impact === "supports" ? "rgba(52,211,153,0.18)" : "rgba(245,158,11,0.18)"}`, background: driver.impact === "supports" ? "rgba(52,211,153,0.06)" : "rgba(245,158,11,0.06)", padding: "10px 12px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                                  <span style={{ fontSize: 12, color: "rgba(226,232,240,0.92)", fontWeight: 500 }}>{driver.label}</span>
+                                  <span style={{ fontSize: 11, color: driver.impact === "supports" ? "rgba(167,243,208,0.92)" : "rgba(253,230,138,0.92)" }}>{driver.score}/100</span>
+                                </div>
+                                <p style={{ fontSize: 12, color: "rgba(203,213,225,0.72)", marginTop: 6, lineHeight: 1.5 }}>{driver.reason}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1295,6 +1853,8 @@ function App() {
   const [incident, setIncident] = useState(INITIAL_INCIDENT);
   const [selectedResponsePath, setSelectedResponsePath] = useState(RESPONSE_PATHS[1]);
   const [activeLayerIds, setActiveLayerIds] = useState(DEFAULT_ACTIVE_LAYER_IDS);
+  const [selectedMonitorHotspot, setSelectedMonitorHotspot] = useState(MONITOR_HOTSPOTS[0]);
+  const [monitorHandoff, setMonitorHandoff] = useState(null);
 
   // Auth state
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem("sentinel_token"));
@@ -1304,7 +1864,7 @@ function App() {
 
   // Sync incident from backend worldState when threats arrive
   useEffect(() => {
-    if (!worldState?.threats?.[0]) return;
+    if (monitorHandoff || !worldState?.threats?.[0]) return;
     const t = worldState.threats[0];
     setIncident(prev => ({
       ...prev,
@@ -1318,11 +1878,11 @@ function App() {
       attackType: t.attack_type || prev.attackType,
       ownerCountry: t.owner_country || prev.ownerCountry,
     }));
-  }, [worldState]);
+  }, [worldState, monitorHandoff]);
 
   // Computed response paths: backend recommendations first, static fallback
   const responsePaths = useMemo(() => {
-    const recs = worldState?.reasoning?.recommendations;
+    const recs = monitorHandoff ? null : worldState?.reasoning?.recommendations;
     if (!recs || recs.length === 0) return RESPONSE_PATHS;
     return recs.map(rec => ({
       id: rec.action_id,
@@ -1333,7 +1893,7 @@ function App() {
       diplomaticBias: Math.round(rec.resource_cost * 50),
       stabilityBias: Math.round(rec.expected_effectiveness * 100),
     }));
-  }, [worldState]);
+  }, [worldState, monitorHandoff]);
 
   // Auto-select first recommendation when response paths change
   useEffect(() => {
@@ -1344,10 +1904,10 @@ function App() {
 
   // Re-fetch state when navigating to console (picks up chat-persisted state)
   useEffect(() => {
-    if (surface === "console") {
+    if (surface === "console" && !monitorHandoff) {
       fetchState();
     }
-  }, [surface, fetchState]);
+  }, [surface, fetchState, monitorHandoff]);
 
   function handleLogin(token, user) {
     setAuthToken(token);
@@ -1390,10 +1950,58 @@ function App() {
     );
   }, []);
 
+  const applyMonitorHandoff = useCallback((hotspot, destination) => {
+    const nextIncident = hotspotToIncident(hotspot);
+    setSelectedMonitorHotspot(hotspot);
+    setIncident(nextIncident);
+    setSelectedResponsePath(RESPONSE_PATHS[1]);
+    setMonitorHandoff({
+      key: `${hotspot.id}-${Date.now()}`,
+      hotspot,
+      incident: nextIncident,
+    });
+    navigate(destination);
+  }, [navigate]);
+
+  const clearMonitorHandoff = useCallback(() => {
+    setMonitorHandoff(null);
+    fetchState();
+  }, [fetchState]);
+
+  const effectiveWorldState = monitorHandoff ? null : worldState;
+
+  const monitorMarkers = useMemo(
+    () => [
+      ...GLOBE_MARKERS,
+      ...MONITOR_HOTSPOTS.map((hotspot) => ({
+        id: hotspot.id,
+        label: hotspot.title,
+        lat: hotspot.lat,
+        lon: hotspot.lon,
+        color: selectedMonitorHotspot?.id === hotspot.id ? "#fb7185" : "#f97316",
+        scale: selectedMonitorHotspot?.id === hotspot.id ? 1.25 : 1.02,
+        hotspot,
+      })),
+    ],
+    [selectedMonitorHotspot],
+  );
+
+  const handleConsoleReset = useCallback(() => {
+    setMonitorHandoff(null);
+    handleReset();
+  }, [handleReset]);
+
+  const handleConsoleAdvance = useCallback(() => {
+    setMonitorHandoff(null);
+    handleAdvance();
+  }, [handleAdvance]);
+
   const consoleModel = useMemo(() => {
     const base = buildConsoleModel(incident, selectedResponsePath);
-    if (!worldState) return base;
-    const r = worldState.reasoning;
+    if (!effectiveWorldState) return base;
+    const r = effectiveWorldState.reasoning;
+    const recommendationProvenance = collectRecommendationProvenance(r?.recommendations || []);
+    const confidenceDrivers = mergeConfidenceDrivers(r?.confidence_drivers || [], recommendationProvenance.confidenceDrivers);
     return {
       ...base,
       // Intent & site analysis — prefer backend reasoning when available
@@ -1410,17 +2018,47 @@ function App() {
         ...base.trust,
         assumptions: r?.assumptions?.length > 0 ? r.assumptions : base.trust.assumptions,
         weakEvidence: r?.key_risks?.length > 0 ? r.key_risks : base.trust.weakEvidence,
+        confidenceBreakdown: confidenceDrivers.length > 0
+          ? confidenceDrivers.map((driver) => ({
+              label: driver.label,
+              value: driver.score,
+              detail: driver.reason,
+              impact: driver.impact,
+            }))
+          : base.trust.confidenceBreakdown,
+        evidenceTrace: {
+          threatIds: uniqueItems([
+            ...(r?.based_on_threat_ids || []),
+            ...recommendationProvenance.threatIds,
+          ]),
+          unitIds: uniqueItems([
+            ...(r?.based_on_unit_ids || []),
+            ...recommendationProvenance.unitIds,
+          ]),
+          eventLog: uniqueItems([
+            ...(r?.based_on_event_log || []),
+            ...recommendationProvenance.eventLog,
+          ]).slice(0, 4),
+          confidenceDrivers: confidenceDrivers.length > 0
+            ? confidenceDrivers
+            : base.trust.evidenceTrace.confidenceDrivers,
+        },
       },
       scores: [
-        { label: "Threat score", value: worldState?.scorecard?.threat_score || 0, tone: "rose" },
-        { label: "Readiness", value: worldState?.scorecard?.readiness_score || 0, tone: "cyan" },
-        { label: "Escalation risk", value: worldState?.scorecard?.escalation_risk || 0, tone: "amber" },
-        { label: "System confidence", value: worldState?.scorecard?.confidence_score || 0, tone: "emerald" },
+        { label: "Threat score", value: effectiveWorldState?.scorecard?.threat_score || 0, tone: "rose" },
+        { label: "Readiness", value: effectiveWorldState?.scorecard?.readiness_score || 0, tone: "cyan" },
+        { label: "Escalation risk", value: effectiveWorldState?.scorecard?.escalation_risk || 0, tone: "amber" },
+        { label: "System confidence", value: effectiveWorldState?.scorecard?.confidence_score || 0, tone: "emerald" },
       ]
     };
-  }, [incident, selectedResponsePath, worldState]);
+  }, [incident, selectedResponsePath, effectiveWorldState]);
 
-  const activeThreat = worldState?.threats?.[0];
+  const counterfactualCompareData = useMemo(
+    () => buildCounterfactualCompareData(incident, responsePaths, selectedResponsePath),
+    [incident, responsePaths, selectedResponsePath],
+  );
+
+  const activeThreat = effectiveWorldState?.threats?.[0];
   const incidentPoint = useMemo(
     () => ({
       lat: activeThreat?.latitude || incident.lat || 34.5261,
@@ -1430,15 +2068,15 @@ function App() {
   );
 
   const mergedMarkers = useMemo(() => {
-    if (!worldState) return GLOBE_MARKERS;
-    const units = (worldState.units || []).map(u => ({
+    if (!effectiveWorldState) return GLOBE_MARKERS;
+    const units = (effectiveWorldState.units || []).map(u => ({
       id: u.unit_id, label: `${u.name} (${u.status})`, lat: u.latitude, lon: u.longitude, color: "#60a5fa", scale: 0.95
     }));
-    const threats = (worldState.threats || []).map(t => ({
+    const threats = (effectiveWorldState.threats || []).map(t => ({
       id: t.threat_id, label: t.label, lat: t.latitude, lon: t.longitude, color: "#fb7185", scale: 1.15
     }));
     return [...units, ...threats];
-  }, [worldState]);
+  }, [effectiveWorldState]);
 
   const globeArcs = useMemo(
     () => [
@@ -1473,7 +2111,13 @@ function App() {
   }
 
   if (surface === "chat") {
-    return <ChatSurface onBack={() => navigate("landing")} onOpenConsole={() => navigate("console")} />;
+    return (
+      <ChatSurface
+        onBack={() => navigate("landing")}
+        onOpenConsole={() => navigate("console")}
+        prefilledIncident={monitorHandoff}
+      />
+    );
   }
 
   if (surface === "monitor") {
@@ -1483,6 +2127,8 @@ function App() {
         onEnterConsole={() => navigate("console")}
         onOpenLogin={() => navigate("login")}
         onOpenAssistant={() => navigate("chat")}
+        onHotspotConsole={(hotspot) => applyMonitorHandoff(hotspot, "console")}
+        onHotspotAssistant={(hotspot) => applyMonitorHandoff(hotspot, "chat")}
         incident={incident}
         incidentPoint={incidentPoint}
         selectedResponsePath={selectedResponsePath}
@@ -1492,6 +2138,9 @@ function App() {
         globeArcs={globeArcs}
         activeLayerIds={activeLayerIds}
         toggleLayer={toggleLayer}
+        monitorMarkers={monitorMarkers}
+        selectedMonitorHotspot={selectedMonitorHotspot}
+        onSelectMonitorHotspot={setSelectedMonitorHotspot}
       />
     );
   }
@@ -1503,16 +2152,29 @@ function App() {
           <div>
             <p className="text-[0.68rem] uppercase tracking-[0.34em] text-cyan-300/80">SENTINEL Strategic Console</p>
             <h1 className="mt-2 text-2xl font-semibold text-white">Incident-to-decision intelligence surface</h1>
-            {worldState && (
-              <p className="mt-2 text-sm font-medium text-slate-300 border-l-[3px] border-cyan-400 pl-3">
-                Phase {worldState.current_phase_index} / {worldState.total_phases} &mdash; <span className="text-white">{worldState.phase_title}</span>
+            {monitorHandoff ? (
+              <p className="mt-2 text-sm font-medium text-rose-100 border-l-[3px] border-rose-400 pl-3">
+                Monitor handoff active &mdash; <span className="text-white">{monitorHandoff.hotspot.title}</span>
               </p>
-            )}
+            ) : effectiveWorldState ? (
+              <p className="mt-2 text-sm font-medium text-slate-300 border-l-[3px] border-cyan-400 pl-3">
+                Phase {effectiveWorldState.current_phase_index} / {effectiveWorldState.total_phases} &mdash; <span className="text-white">{effectiveWorldState.phase_title}</span>
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
+            {monitorHandoff ? (
+              <button
+                type="button"
+                onClick={clearMonitorHandoff}
+                className="rounded-full border border-rose-300/25 bg-rose-400/10 px-4 py-2 text-sm text-rose-100 transition hover:border-rose-300/45 hover:bg-rose-400/15"
+              >
+                Return to scenario
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={handleReset}
+              onClick={handleConsoleReset}
               disabled={loading}
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-300/35 hover:text-white disabled:opacity-50"
             >
@@ -1520,8 +2182,8 @@ function App() {
             </button>
             <button
               type="button"
-              onClick={handleAdvance}
-              disabled={loading || (worldState && worldState.current_phase_index >= worldState.total_phases - 1)}
+              onClick={handleConsoleAdvance}
+              disabled={loading || (effectiveWorldState && effectiveWorldState.current_phase_index >= effectiveWorldState.total_phases - 1)}
               className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
             >
               Next System Injection
@@ -1646,15 +2308,15 @@ function App() {
 
           <div className="space-y-4">
             <TheatreBoard
-              units={worldState?.units || []}
-              threats={worldState?.threats || []}
+              units={effectiveWorldState?.units || []}
+              threats={effectiveWorldState?.threats || []}
               incident={{
                 lat: incidentPoint?.lat ?? 34.5261,
                 lon: incidentPoint?.lon ?? 74.2612,
                 label: incident.title || "INCIDENT",
               }}
               title={activeThreat ? activeThreat.label : incident.title}
-              phase={worldState?.phase_title || ""}
+              phase={effectiveWorldState?.phase_title || (monitorHandoff ? "Monitor handoff" : "")}
             />
 
             <StrategicGlobe
@@ -1691,6 +2353,8 @@ function App() {
                 ))}
               </div>
             </Section>
+
+            <CounterfactualCompareSection compareData={counterfactualCompareData} />
 
             <Section eyebrow="Surface 05" title="Consequence engine">
               <p className="text-sm leading-7 text-slate-300">{consoleModel.implicationSummary}</p>
@@ -1736,6 +2400,38 @@ function App() {
                   </div>
                 </div>
                 <div>
+                  <p className="text-[0.68rem] uppercase tracking-[0.28em] text-slate-400">Evidence trace</p>
+                  <div className="mt-3 space-y-3">
+                    {(consoleModel.trust.evidenceTrace?.threatIds?.length > 0 || consoleModel.trust.evidenceTrace?.unitIds?.length > 0) && (
+                      <div className="flex flex-wrap gap-2">
+                        {(consoleModel.trust.evidenceTrace?.threatIds || []).map((threatId) => (
+                          <span
+                            key={`trust-threat-${threatId}`}
+                            className="rounded-full border border-rose-400/15 bg-rose-400/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-rose-100"
+                          >
+                            Threat {threatId}
+                          </span>
+                        ))}
+                        {(consoleModel.trust.evidenceTrace?.unitIds || []).map((unitId) => (
+                          <span
+                            key={`trust-unit-${unitId}`}
+                            className="rounded-full border border-cyan-400/15 bg-cyan-400/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-cyan-100"
+                          >
+                            Unit {unitId}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      {(consoleModel.trust.evidenceTrace?.eventLog || []).map((eventLine) => (
+                        <div key={eventLine} className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm leading-6 text-slate-200">
+                          {eventLine}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div>
                   <p className="text-[0.68rem] uppercase tracking-[0.28em] text-slate-400">Confidence breakdown</p>
                   <div className="mt-3 space-y-3">
                     {consoleModel.trust.confidenceBreakdown.map((item) => (
@@ -1745,8 +2441,12 @@ function App() {
                           <span>{item.value}</span>
                         </div>
                         <div className="mt-2 h-2 rounded-full bg-white/6">
-                          <div className="h-full rounded-full bg-cyan-400" style={{ width: `${item.value}%` }} />
+                          <div
+                            className={`h-full rounded-full ${item.impact === "limits" ? "bg-amber-400" : "bg-cyan-400"}`}
+                            style={{ width: `${item.value}%` }}
+                          />
                         </div>
+                        {item.detail ? <p className="mt-2 text-xs leading-5 text-slate-400">{item.detail}</p> : null}
                       </div>
                     ))}
                   </div>
