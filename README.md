@@ -7,7 +7,7 @@ An AI-native mission intelligence co-pilot that fuses multi-source operational i
 | | |
 |---|---|
 | **Hackathon** | 24-hour hackathon — *Build the Impossible* |
-| **Team** | 3 builders, 24 hours |
+| **Team** | Anshul Desai RVITM , Parth Bhat BMSCE , Abhigyan Shekhar BMSCE , 24 hours |
 | **Primary user** | Commander / operator / analyst |
 | **Core promise** | Fragmented inputs → one operational picture → explainable reasoning → projected outcome |
 | **Stack** | React 19 + Vite + Tailwind · FastAPI + Pydantic · SQLite (auth) · Claude API |
