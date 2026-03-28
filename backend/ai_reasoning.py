@@ -116,13 +116,20 @@ def _clip_score(value: float) -> int:
     return max(0, min(100, round(value)))
 
 
+def _matches_token_boundary(haystack: str, token: str) -> bool:
+    normalized = (token or "").strip()
+    if len(normalized) < 3:
+        return False
+    return re.search(rf"\b{re.escape(normalized)}\b", haystack, flags=re.IGNORECASE) is not None
+
+
 def _collect_matching_threat_ids(state: WorldState, text: str) -> list[str]:
-    haystack = text.lower()
+    haystack = text or ""
     matched = [
         threat.threat_id
         for threat in state.threats
         if any(
-            token and token.lower() in haystack
+            _matches_token_boundary(haystack, token)
             for token in [
                 threat.threat_id,
                 threat.label,
@@ -139,12 +146,12 @@ def _collect_matching_threat_ids(state: WorldState, text: str) -> list[str]:
 
 
 def _collect_matching_unit_ids(state: WorldState, text: str) -> list[str]:
-    haystack = text.lower()
+    haystack = text or ""
     matched = [
         unit.unit_id
         for unit in state.units
         if any(
-            token and token.lower() in haystack
+            _matches_token_boundary(haystack, token)
             for token in [unit.unit_id, unit.name, unit.role, unit.grid_ref or ""]
         )
     ]
