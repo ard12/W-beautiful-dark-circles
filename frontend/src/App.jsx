@@ -1289,7 +1289,7 @@ function ChatSurface({ onBack, onOpenConsole }) {
 }
 
 function App() {
-  const { worldState, loading, handleAdvance, handleReset } = useSentinelState();
+  const { worldState, loading, handleAdvance, handleReset, fetchState } = useSentinelState();
   const [surface, setSurface] = useState(() => (typeof window === "undefined" ? "landing" : getSurfaceFromHash()));
   const [mapMode, setMapMode] = useState("flat");
   const [incident, setIncident] = useState(INITIAL_INCIDENT);
@@ -1301,6 +1301,53 @@ function App() {
   const [authUser, setAuthUser] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem("sentinel_user")); } catch { return null; }
   });
+
+  // Sync incident from backend worldState when threats arrive
+  useEffect(() => {
+    if (!worldState?.threats?.[0]) return;
+    const t = worldState.threats[0];
+    setIncident(prev => ({
+      ...prev,
+      title: t.label || prev.title,
+      location: worldState.theater_name || prev.location,
+      severity: t.severity ?? prev.severity,
+      description: t.summary || prev.description,
+      lat: t.latitude ?? prev.lat,
+      lon: t.longitude ?? prev.lon,
+      actor: t.actor || prev.actor,
+      attackType: t.attack_type || prev.attackType,
+      ownerCountry: t.owner_country || prev.ownerCountry,
+    }));
+  }, [worldState]);
+
+  // Computed response paths: backend recommendations first, static fallback
+  const responsePaths = useMemo(() => {
+    const recs = worldState?.reasoning?.recommendations;
+    if (!recs || recs.length === 0) return RESPONSE_PATHS;
+    return recs.map(rec => ({
+      id: rec.action_id,
+      title: rec.action,
+      summary: rec.rationale,
+      ring: rec.priority.toUpperCase(),
+      riskBias: Math.round((1 - rec.expected_effectiveness) * 100),
+      diplomaticBias: Math.round(rec.resource_cost * 50),
+      stabilityBias: Math.round(rec.expected_effectiveness * 100),
+    }));
+  }, [worldState]);
+
+  // Auto-select first recommendation when response paths change
+  useEffect(() => {
+    if (responsePaths.length > 0 && !responsePaths.find(p => p.id === selectedResponsePath.id)) {
+      setSelectedResponsePath(responsePaths[0]);
+    }
+  }, [responsePaths]);
+
+  // Re-fetch state when navigating to console (picks up chat-persisted state)
+  useEffect(() => {
+    if (surface === "console") {
+      fetchState();
+    }
+  }, [surface, fetchState]);
 
   function handleLogin(token, user) {
     setAuthToken(token);
@@ -1346,15 +1393,23 @@ function App() {
   const consoleModel = useMemo(() => {
     const base = buildConsoleModel(incident, selectedResponsePath);
     if (!worldState) return base;
+    const r = worldState.reasoning;
     return {
       ...base,
-      brief: worldState?.reasoning?.assessment_summary || base.brief,
-      timeline: worldState?.reasoning?.projected_outcome ? [{ window: "Next 24 hours", text: worldState.reasoning.projected_outcome }] : base.timeline,
-      consequenceHighlights: worldState?.reasoning?.recommendations?.length > 0 ? worldState.reasoning.recommendations.map(r => r.action || r.rationale) : base.consequenceHighlights,
+      // Intent & site analysis — prefer backend reasoning when available
+      primaryIntent: r?.assessment_summary || base.primaryIntent,
+      alternateIntents: r?.key_risks?.length > 0 ? r.key_risks : base.alternateIntents,
+      whyThisSite: r?.assessment_summary
+        ? `${r.assessment_summary.split(".").slice(1).join(".").trim() || base.whyThisSite}`
+        : base.whyThisSite,
+      implicationSummary: r?.projected_outcome || base.implicationSummary,
+      brief: r?.assessment_summary || base.brief,
+      timeline: r?.projected_outcome ? [{ window: "Next 24 hours", text: r.projected_outcome }] : base.timeline,
+      consequenceHighlights: r?.recommendations?.length > 0 ? r.recommendations.map(rec => rec.action || rec.rationale) : base.consequenceHighlights,
       trust: {
         ...base.trust,
-        assumptions: worldState?.reasoning?.assumptions?.length > 0 ? worldState.reasoning.assumptions : base.trust.assumptions,
-        weakEvidence: worldState?.reasoning?.key_risks?.length > 0 ? worldState.reasoning.key_risks : base.trust.weakEvidence,
+        assumptions: r?.assumptions?.length > 0 ? r.assumptions : base.trust.assumptions,
+        weakEvidence: r?.key_risks?.length > 0 ? r.key_risks : base.trust.weakEvidence,
       },
       scores: [
         { label: "Threat score", value: worldState?.scorecard?.threat_score || 0, tone: "rose" },
@@ -1598,12 +1653,12 @@ function App() {
                 lon: incidentPoint?.lon ?? 74.2612,
                 label: incident.title || "INCIDENT",
               }}
-              title={activeThreat ? activeThreat.type : incident.title}
+              title={activeThreat ? activeThreat.label : incident.title}
               phase={worldState?.phase_title || ""}
             />
 
             <StrategicGlobe
-              title={activeThreat ? activeThreat.type : incident.title}
+              title={activeThreat ? activeThreat.label : incident.title}
               subtitle="The globe acts as the main analysis surface: attacked site, risk corridors, and the consequence spread of the chosen response path."
               incidentPoint={incidentPoint}
               markers={mergedMarkers}
@@ -1612,7 +1667,7 @@ function App() {
 
             <Section eyebrow="Surface 04" title="Response path selector">
               <div className="grid gap-3 xl:grid-cols-2">
-                {RESPONSE_PATHS.map((path) => (
+                {responsePaths.map((path) => (
                   <button
                     key={path.id}
                     type="button"

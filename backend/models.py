@@ -28,6 +28,9 @@ class ThreatState(BaseModel):
     confidence: float = Field(ge=0, le=100)
     summary: str
     source_type: str  # e.g. "comms_intercept", "drone_recon", "ground_sensor", "osint"
+    actor: Optional[str] = None
+    attack_type: Optional[str] = None
+    owner_country: Optional[str] = None
 
 
 class AlertState(BaseModel):
@@ -221,6 +224,8 @@ class IncidentInput(BaseModel):
     attack_type: str
     severity: int = Field(ge=0, le=100)
     description: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class FullReportOutput(BaseModel):
