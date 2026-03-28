@@ -30,6 +30,7 @@ export interface TheatreMapMarker {
   kind?: string;
   description?: string;
   dependencies?: string[];
+  linkIds?: string[];
   meta?: string;
   trend?: Trend;
   cascadeLevel?: number;
@@ -267,6 +268,7 @@ function PulsingIncidentHalo({ marker }: { marker: TheatreMapMarker }) {
       <CircleMarker
         center={[marker.lat, marker.lon]}
         radius={8.5}
+        bubblingMouseEvents={false}
         pathOptions={{
           color: "#ffd0d7",
           weight: 1.4,
@@ -278,6 +280,7 @@ function PulsingIncidentHalo({ marker }: { marker: TheatreMapMarker }) {
       <CircleMarker
         center={[marker.lat, marker.lon]}
         radius={14 + pulse * 6}
+        bubblingMouseEvents={false}
         pathOptions={{
           color: "#f43f5e",
           weight: 1.2,
@@ -289,6 +292,7 @@ function PulsingIncidentHalo({ marker }: { marker: TheatreMapMarker }) {
       <CircleMarker
         center={[marker.lat, marker.lon]}
         radius={18 + pulse * 10}
+        bubblingMouseEvents={false}
         pathOptions={{
           color: "#f43f5e",
           weight: 1.1,
@@ -299,6 +303,7 @@ function PulsingIncidentHalo({ marker }: { marker: TheatreMapMarker }) {
       <CircleMarker
         center={[marker.lat, marker.lon]}
         radius={27 + pulse * 14}
+        bubblingMouseEvents={false}
         pathOptions={{
           color: "#fb7185",
           weight: 0.8,
@@ -309,6 +314,7 @@ function PulsingIncidentHalo({ marker }: { marker: TheatreMapMarker }) {
       <CircleMarker
         center={[marker.lat, marker.lon]}
         radius={38 + pulse * 18}
+        bubblingMouseEvents={false}
         pathOptions={{
           color: "#fb7185",
           weight: 0.7,
@@ -361,6 +367,7 @@ function MarkerLayer({
             <CircleMarker
               center={[marker.lat, marker.lon]}
               radius={radius + (isHovered ? 11 : 8)}
+              bubblingMouseEvents={false}
               pathOptions={{
                 color: style.stroke,
                 opacity: isDimmed ? 0.08 : 0,
@@ -371,6 +378,7 @@ function MarkerLayer({
             <CircleMarker
               center={[marker.lat, marker.lon]}
               radius={radius + (isHovered && marker.status !== "incident" ? 0.8 : 0)}
+              bubblingMouseEvents={false}
               eventHandlers={{
                 click: () => onMarkerSelect(marker),
                 mouseover: () => onHoverChange(marker.id),
@@ -619,6 +627,8 @@ export default function InteractiveMap({
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
               placeholder="Search nodes"
+              aria-label="Search nodes"
+              title="Search nodes"
               className="h-8 w-[140px] border-0 bg-transparent px-1 text-sm text-white shadow-none focus-visible:ring-0 lg:w-[170px]"
             />
           </div>
@@ -627,6 +637,8 @@ export default function InteractiveMap({
             size="icon"
             className="h-9 w-9 rounded-full border-white/10 bg-white/[0.03] text-slate-200 hover:bg-white/[0.08]"
             onClick={() => setFocusTarget(center)}
+            aria-label="Recenter map"
+            title="Recenter map"
           >
             <Crosshair className="h-4 w-4" />
           </Button>
@@ -638,6 +650,8 @@ export default function InteractiveMap({
               baseLayer === "satellite" ? "border-cyan-400/35 bg-cyan-400/12 text-cyan-100" : "",
             )}
             onClick={() => setBaseLayer((current) => (current === "dark" ? "satellite" : "dark"))}
+            aria-label="Toggle base layer"
+            title="Toggle base layer"
           >
             <Satellite className="h-4 w-4" />
           </Button>
@@ -649,6 +663,8 @@ export default function InteractiveMap({
               trafficEnabled ? "border-amber-400/30 bg-amber-400/12 text-amber-100" : "",
             )}
             onClick={() => setTrafficEnabled((current) => !current)}
+            aria-label="Toggle traffic"
+            title="Toggle traffic"
           >
             <Layers3 className="h-4 w-4" />
           </Button>
