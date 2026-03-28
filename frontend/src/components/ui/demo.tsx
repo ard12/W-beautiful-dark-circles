@@ -1,9 +1,5 @@
-import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
+import { Component } from "@/components/ui/robot-flyby";
 
-export function Demo() {
-  return (
-    <div className="flex w-screen overflow-x-hidden">
-      <AnimatedAIChat />
-    </div>
-  );
+export default function DemoOne() {
+  return <Component />;
 }

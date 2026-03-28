@@ -8,6 +8,23 @@
     "Segoe UI",
     sans-serif;
   background: #020617;
+  --background: #07111f;
+  --foreground: #e2e8f0;
+  --muted: #0f172a;
+  --muted-foreground: #94a3b8;
+  --popover: #07111f;
+  --popover-foreground: #e2e8f0;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #22d3ee;
+  --primary: #22d3ee;
+  --primary-foreground: #020617;
+  --secondary: #0f172a;
+  --secondary-foreground: #e2e8f0;
+  --accent: #112031;
+  --accent-foreground: #e2e8f0;
+  --destructive: #ef4444;
+  --destructive-foreground: #fff1f2;
 }
 
 html, body, #root {
@@ -38,6 +55,71 @@ textarea {
 ::selection {
   background: rgba(34, 211, 238, 0.35);
   color: #f8fafc;
+}
+
+.hero-word {
+  display: inline-block;
+  transform: translateY(28px);
+  filter: blur(8px);
+}
+
+.hero-word--visible {
+  animation: hero-word-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.hero-subtitle {
+  transform: translateY(18px);
+  filter: blur(8px);
+}
+
+.hero-subtitle--visible {
+  animation: hero-subtitle-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.hero-scroll {
+  animation: hero-scroll-fade 0.8s ease forwards;
+  animation-delay: 1.1s;
+  opacity: 0;
+}
+
+@keyframes hero-word-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+    filter: blur(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-subtitle-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-scroll-fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .sentinel-panel {
