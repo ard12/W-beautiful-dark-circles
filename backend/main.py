@@ -13,11 +13,21 @@ from ai_reasoning import answer_query, project_future, load_doctrine, load_area_
 from threat_scorer import compute_scorecard
 from auth import router as auth_router, init_db
 
+import os
+
 app = FastAPI()
+
+_allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+]
+_frontend_url = os.getenv("FRONTEND_URL", "")
+if _frontend_url:
+    _allowed_origins.append(_frontend_url)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
