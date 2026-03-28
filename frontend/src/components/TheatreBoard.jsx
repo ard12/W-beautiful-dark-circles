@@ -1,230 +1,722 @@
 import React, { useMemo } from "react";
+import InteractiveMap from "@/components/ui/interactive-map";
 
-/* ─── Icon shapes ──────────────────────────────────────────────── */
-
-const ROLE_ICONS = {
-  infantry: "⬡",
-  armor: "◆",
-  medical: "+",
-  logistics: "◫",
-  cas: "✈",
-  recon: "◉",
+const DEFAULT_COORDINATES = {
+  lat: 25.1264,
+  lon: 62.3228,
 };
 
-const ROLE_COLORS = {
-  infantry: "#22d3ee",
-  armor: "#38bdf8",
-  medical: "#34d399",
-  logistics: "#a78bfa",
-  cas: "#f59e0b",
-  recon: "#818cf8",
-};
+const DEFAULT_SEVERITY = 61;
 
-/* ─── Coordinate → board-pixel mapper ──────────────────────────── */
-
-function useProjection(units, threats, incident, padding = 48) {
-  return useMemo(() => {
-    const W = 640;
-    const H = 440;
-    const points = [
-      ...units.map((u) => ({ lat: u.latitude, lon: u.longitude })),
-      ...threats.map((t) => ({ lat: t.latitude, lon: t.longitude })),
-    ];
-    if (incident) points.push(incident);
-    if (points.length === 0) return { project: () => ({ x: W / 2, y: H / 2 }), W, H };
-
-    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
-    for (const p of points) {
-      if (p.lat < minLat) minLat = p.lat;
-      if (p.lat > maxLat) maxLat = p.lat;
-      if (p.lon < minLon) minLon = p.lon;
-      if (p.lon > maxLon) maxLon = p.lon;
-    }
-    // Pad extent to avoid edge-placed markers
-    const latPad = (maxLat - minLat) * 0.15 || 0.02;
-    const lonPad = (maxLon - minLon) * 0.15 || 0.02;
-    minLat -= latPad; maxLat += latPad;
-    minLon -= lonPad; maxLon += lonPad;
-
-    const project = ({ lat, lon }) => ({
-      x: padding + ((lon - minLon) / (maxLon - minLon)) * (W - 2 * padding),
-      y: padding + ((maxLat - lat) / (maxLat - minLat)) * (H - 2 * padding),
-    });
-    return { project, W, H, bounds: { minLat, maxLat, minLon, maxLon } };
-  }, [units, threats, incident, padding]);
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
-/* ─── Grid background ──────────────────────────────────────────── */
-
-function GridLines({ W, H }) {
-  const lines = [];
-  const gap = 40;
-  for (let x = gap; x < W; x += gap) {
-    lines.push(<line key={`v${x}`} x1={x} y1={0} x2={x} y2={H} stroke="rgba(148,163,184,0.07)" strokeWidth={0.5} />);
-  }
-  for (let y = gap; y < H; y += gap) {
-    lines.push(<line key={`h${y}`} x1={0} y1={y} x2={W} y2={y} stroke="rgba(148,163,184,0.07)" strokeWidth={0.5} />);
-  }
-  return <>{lines}</>;
+function toFiniteNumber(value, fallback) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-/* ─── Pulse animation ──────────────────────────────────────────── */
+function formatRole(role) {
+  return role ? role.replace(/_/g, " ") : "system";
+}
 
-function PulseRing({ cx, cy, color, r = 18 }) {
-  return (
-    <>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={1.5} opacity={0.4}>
-        <animate attributeName="r" from={r} to={r + 16} dur="2s" repeatCount="indefinite" />
-        <animate attributeName="opacity" from={0.5} to={0} dur="2s" repeatCount="indefinite" />
-      </circle>
-      <circle cx={cx} cy={cy} r={r * 0.6} fill="none" stroke={color} strokeWidth={1} opacity={0.25}>
-        <animate attributeName="r" from={r * 0.6} to={r + 10} dur="2.5s" begin="0.5s" repeatCount="indefinite" />
-        <animate attributeName="opacity" from={0.35} to={0} dur="2.5s" begin="0.5s" repeatCount="indefinite" />
-      </circle>
-    </>
+function shortenText(text, maxLength) {
+  if (!text) return "";
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+function resolveConfidence(threats) {
+  if (!threats?.length) return 65;
+  return Math.round(
+    threats.reduce((total, threat) => total + toFiniteNumber(threat.confidence, 0), 0) / threats.length,
   );
 }
 
-/* ─── Main component ──────────────────────────────────────────── */
+function resolveSiteType(incident, attackType, locationName) {
+  const scenarioText = [
+    incident?.title,
+    incident?.label,
+    incident?.description,
+    locationName,
+    attackType,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-export default function TheatreBoard({ units = [], threats = [], incident, title, phase }) {
-  const incidentPt = incident ? { lat: incident.lat, lon: incident.lon } : null;
-  const { project, W, H } = useProjection(units, threats, incidentPt);
+  if (/(port|harbor|harbour|dock|berth|customs|cargo|logistics)/.test(scenarioText)) return "port";
+  if (/(missile|air\s?defen|air corridor|airbase|interceptor|sam)/.test(scenarioText)) return "air";
+  if (/(radar|relay|drone|isr|surveillance|border|sector)/.test(scenarioText)) return "radar";
+  if (/(militant|raid|artillery|checkpoint|frontier|ground|convoy)/.test(scenarioText)) return "land";
+  return "neutral";
+}
 
-  const projectedUnits = units.map((u) => ({ ...u, ...project({ lat: u.latitude, lon: u.longitude }) }));
-  const projectedThreats = threats.map((t) => ({ ...t, ...project({ lat: t.latitude, lon: t.longitude }) }));
-  const projectedIncident = incidentPt ? project(incidentPt) : null;
+function buildSiteTemplates(siteType, context) {
+  const { lat, lon, severity, warningTrigger, locationName, attackType } = context;
+
+  if (siteType === "port") {
+    return [
+      {
+        id: "port-ops-core",
+        name: `${locationName} Port Ops Core`,
+        lat: lat + 0.016,
+        lon: lon + 0.022,
+        status: severity >= 55 ? "critical" : "warning",
+        kind: "port core",
+        description: "Supervises berth assignments, dock movement, and scheduling for inbound cargo traffic.",
+        trend: "up",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "customs-exchange", "fuel-dispatch", "yard-sensors"],
+      },
+      {
+        id: "customs-exchange",
+        name: "Customs Exchange",
+        lat: lat - 0.012,
+        lon: lon + 0.03,
+        status: warningTrigger ? "warning" : "normal",
+        kind: "data exchange",
+        description: "Manages manifests, clearance workflows, and operator access for logistics systems.",
+        trend: warningTrigger ? "up" : "flat",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "port-ops-core", "satcom-uplink"],
+      },
+      {
+        id: "fuel-dispatch",
+        name: "Fuel Dispatch Relay",
+        lat: lat + 0.022,
+        lon: lon - 0.02,
+        status: severity >= 58 ? "warning" : "normal",
+        kind: "infrastructure",
+        description: "Coordinates fueling windows and dispatch routing for dockside support vehicles.",
+        trend: severity >= 58 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["port-ops-core", "power-relay"],
+      },
+      {
+        id: "power-relay",
+        name: "Power Distribution Node",
+        lat: lat - 0.018,
+        lon: lon - 0.024,
+        status: severity >= 62 ? "warning" : "normal",
+        kind: "power",
+        description: "Maintains current to scheduling systems, sensors, and comms racks across the harbor zone.",
+        trend: severity >= 62 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["incident-core", "fuel-dispatch", "yard-sensors"],
+      },
+      {
+        id: "satcom-uplink",
+        name: "Satellite Uplink",
+        lat: lat + 0.028,
+        lon: lon + 0.05,
+        status: severity >= 70 ? "critical" : "warning",
+        kind: "comms",
+        description: `${attackType} is likely attempting to sever remote coordination and situational reporting.`,
+        trend: severity >= 70 ? "up" : "flat",
+        cascadeLevel: 3,
+        linkIds: ["customs-exchange"],
+      },
+      {
+        id: "yard-sensors",
+        name: "Yard Sensor Mesh",
+        lat: lat - 0.028,
+        lon: lon + 0.008,
+        status: warningTrigger ? "warning" : "normal",
+        kind: "sensor grid",
+        description: "Telemetry backbone for cargo movement, access gates, and dockside camera feeds.",
+        trend: warningTrigger ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["port-ops-core", "power-relay"],
+      },
+    ];
+  }
+
+  if (siteType === "radar") {
+    return [
+      {
+        id: "radar-relay-core",
+        name: `${locationName} Radar Relay`,
+        lat: lat + 0.014,
+        lon: lon + 0.018,
+        status: severity >= 58 ? "critical" : "warning",
+        kind: "sensor relay",
+        description: "Fuses local track data and hands the picture to the wider surveillance grid.",
+        trend: "up",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "air-picture-cell", "comms-backhaul", "border-sensor-mesh"],
+      },
+      {
+        id: "air-picture-cell",
+        name: "Air Picture Cell",
+        lat: lat - 0.01,
+        lon: lon + 0.026,
+        status: warningTrigger ? "warning" : "normal",
+        kind: "command analytics",
+        description: "Correlates radar tracks, drone sightings, and alert thresholds into a single recognized air picture.",
+        trend: warningTrigger ? "up" : "flat",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "radar-relay-core", "quick-reaction-net"],
+      },
+      {
+        id: "comms-backhaul",
+        name: "Comms Backhaul",
+        lat: lat + 0.024,
+        lon: lon - 0.018,
+        status: severity >= 62 ? "warning" : "normal",
+        kind: "communications",
+        description: "Carries relay output to sector command posts and downstream warning nets.",
+        trend: severity >= 62 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["radar-relay-core", "power-relay"],
+      },
+      {
+        id: "power-relay",
+        name: "Power Relay Shelter",
+        lat: lat - 0.02,
+        lon: lon - 0.022,
+        status: severity >= 66 ? "warning" : "normal",
+        kind: "power",
+        description: "Stabilizes power for tracking racks, microwave links, and relay shelters.",
+        trend: severity >= 66 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["incident-core", "comms-backhaul", "border-sensor-mesh"],
+      },
+      {
+        id: "border-sensor-mesh",
+        name: "Border Sensor Mesh",
+        lat: lat - 0.028,
+        lon: lon + 0.01,
+        status: warningTrigger ? "warning" : "normal",
+        kind: "sensor grid",
+        description: "Provides forward ISR cues from observation posts and unattended sensors along the sector.",
+        trend: warningTrigger ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["radar-relay-core", "power-relay"],
+      },
+      {
+        id: "quick-reaction-net",
+        name: "Quick Reaction Network",
+        lat: lat + 0.03,
+        lon: lon + 0.042,
+        status: severity >= 72 ? "critical" : "warning",
+        kind: "response coordination",
+        description: `${attackType} is compressing response timing and forcing manual coordination across the sector defense net.`,
+        trend: severity >= 72 ? "up" : "flat",
+        cascadeLevel: 3,
+        linkIds: ["air-picture-cell"],
+      },
+    ];
+  }
+
+  if (siteType === "air") {
+    return [
+      {
+        id: "air-defense-core",
+        name: `${locationName} Defense Core`,
+        lat: lat + 0.014,
+        lon: lon + 0.024,
+        status: severity >= 72 ? "critical" : "warning",
+        kind: "air defense",
+        description: "Coordinates interceptor, warning, and targeting decisions for the defended air corridor.",
+        trend: "up",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "track-fusion-node", "interceptor-battery", "civil-air-cell"],
+      },
+      {
+        id: "track-fusion-node",
+        name: "Track Fusion Node",
+        lat: lat - 0.012,
+        lon: lon + 0.028,
+        status: severity >= 60 ? "warning" : "normal",
+        kind: "sensor fusion",
+        description: "Merges radar, missile warning, and decoy data into the live engagement picture.",
+        trend: severity >= 60 ? "up" : "flat",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "air-defense-core", "missile-warning-net"],
+      },
+      {
+        id: "interceptor-battery",
+        name: "Interceptor Battery",
+        lat: lat + 0.026,
+        lon: lon - 0.02,
+        status: severity >= 76 ? "critical" : "warning",
+        kind: "air defense battery",
+        description: "Launch and readiness control node for short-notice interceptor sorties and SAM tasking.",
+        trend: severity >= 76 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["air-defense-core", "power-control-node"],
+      },
+      {
+        id: "civil-air-cell",
+        name: "Civil Air Coordination",
+        lat: lat - 0.02,
+        lon: lon - 0.018,
+        status: warningTrigger ? "warning" : "normal",
+        kind: "airspace control",
+        description: "Coordinates civilian reroutes, runway advisories, and deconfliction across the corridor.",
+        trend: warningTrigger ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["air-defense-core", "communications-uplink"],
+      },
+      {
+        id: "communications-uplink",
+        name: "Communications Uplink",
+        lat: lat + 0.03,
+        lon: lon + 0.046,
+        status: severity >= 68 ? "critical" : "warning",
+        kind: "communications",
+        description: `${attackType} is attempting to fracture warning dissemination and reporting discipline across the corridor.`,
+        trend: severity >= 68 ? "up" : "flat",
+        cascadeLevel: 3,
+        linkIds: ["civil-air-cell", "missile-warning-net"],
+      },
+      {
+        id: "missile-warning-net",
+        name: "Missile Warning Net",
+        lat: lat - 0.028,
+        lon: lon + 0.008,
+        status: severity >= 64 ? "warning" : "normal",
+        kind: "warning network",
+        description: "Provides early warning cues and automated alert fan-out to defensive crews.",
+        trend: severity >= 64 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["track-fusion-node", "communications-uplink", "power-control-node"],
+      },
+      {
+        id: "power-control-node",
+        name: "Power Control Node",
+        lat: lat - 0.026,
+        lon: lon - 0.034,
+        status: severity >= 63 ? "warning" : "normal",
+        kind: "power",
+        description: "Maintains stable power and fallback load balancing for tracking arrays and interceptor systems.",
+        trend: severity >= 63 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["interceptor-battery", "missile-warning-net"],
+      },
+    ];
+  }
+
+  if (siteType === "land") {
+    return [
+      {
+        id: "sector-ops-center",
+        name: `${locationName} Sector Ops Center`,
+        lat: lat + 0.014,
+        lon: lon + 0.022,
+        status: severity >= 58 ? "critical" : "warning",
+        kind: "operations",
+        description: "Coordinates local force posture, patrol routing, and incident reporting for the affected ground sector.",
+        trend: "up",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "forward-observer-post", "comms-repeater", "mobility-hub"],
+      },
+      {
+        id: "forward-observer-post",
+        name: "Forward Observer Post",
+        lat: lat - 0.012,
+        lon: lon + 0.026,
+        status: warningTrigger ? "warning" : "normal",
+        kind: "surveillance",
+        description: "Feeds line-of-sight observations and local ISR cues into the sector command picture.",
+        trend: warningTrigger ? "up" : "flat",
+        cascadeLevel: 1,
+        linkIds: ["incident-core", "sector-ops-center"],
+      },
+      {
+        id: "comms-repeater",
+        name: "Comms Repeater",
+        lat: lat + 0.022,
+        lon: lon - 0.018,
+        status: severity >= 61 ? "warning" : "normal",
+        kind: "communications",
+        description: "Extends radio coverage for dispersed patrols, checkpoints, and quick-reaction elements.",
+        trend: severity >= 61 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["sector-ops-center", "medical-staging"],
+      },
+      {
+        id: "mobility-hub",
+        name: "Mobility Staging Area",
+        lat: lat - 0.02,
+        lon: lon - 0.02,
+        status: severity >= 56 ? "warning" : "normal",
+        kind: "mobility",
+        description: "Controls vehicle dispatch, route allocation, and local maneuver support.",
+        trend: severity >= 56 ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["sector-ops-center", "support-cell"],
+      },
+      {
+        id: "medical-staging",
+        name: "Medical Staging",
+        lat: lat + 0.03,
+        lon: lon + 0.044,
+        status: severity >= 68 ? "critical" : "warning",
+        kind: "medical",
+        description: `${attackType} is beginning to stress casualty handling and response timing inside the local ground network.`,
+        trend: severity >= 68 ? "up" : "flat",
+        cascadeLevel: 3,
+        linkIds: ["comms-repeater"],
+      },
+      {
+        id: "support-cell",
+        name: "Support Cell",
+        lat: lat - 0.03,
+        lon: lon + 0.006,
+        status: warningTrigger ? "warning" : "normal",
+        kind: "logistics",
+        description: "Handles sustainment, spare parts, and field resupply into the affected operating area.",
+        trend: warningTrigger ? "up" : "flat",
+        cascadeLevel: 2,
+        linkIds: ["mobility-hub"],
+      },
+    ];
+  }
+
+  return [
+    {
+      id: "ops-coordination-node",
+      name: `${locationName} Operations Node`,
+      lat: lat + 0.014,
+      lon: lon + 0.022,
+      status: severity >= 58 ? "critical" : "warning",
+      kind: "operations",
+      description: "Primary coordination node for the affected site and its dependent systems.",
+      trend: "up",
+      cascadeLevel: 1,
+      linkIds: ["incident-core", "telemetry-exchange", "communications-gateway", "sensor-array"],
+    },
+    {
+      id: "telemetry-exchange",
+      name: "Telemetry Exchange",
+      lat: lat - 0.012,
+      lon: lon + 0.028,
+      status: warningTrigger ? "warning" : "normal",
+      kind: "data exchange",
+      description: "Aggregates status, diagnostics, and event signals from surrounding infrastructure.",
+      trend: warningTrigger ? "up" : "flat",
+      cascadeLevel: 1,
+      linkIds: ["incident-core", "ops-coordination-node"],
+    },
+    {
+      id: "communications-gateway",
+      name: "Communications Gateway",
+      lat: lat + 0.026,
+      lon: lon - 0.018,
+      status: severity >= 66 ? "critical" : "warning",
+      kind: "communications",
+      description: `${attackType} is degrading the site's ability to coordinate and broadcast a consistent operational picture.`,
+      trend: severity >= 66 ? "up" : "flat",
+      cascadeLevel: 2,
+      linkIds: ["ops-coordination-node", "power-control-node"],
+    },
+    {
+      id: "power-control-node",
+      name: "Power Control Node",
+      lat: lat - 0.018,
+      lon: lon - 0.024,
+      status: severity >= 62 ? "warning" : "normal",
+      kind: "power",
+      description: "Maintains stable power distribution across the affected service cluster.",
+      trend: severity >= 62 ? "up" : "flat",
+      cascadeLevel: 2,
+      linkIds: ["incident-core", "communications-gateway", "sensor-array"],
+    },
+    {
+      id: "sensor-array",
+      name: "Sensor Array",
+      lat: lat - 0.028,
+      lon: lon + 0.008,
+      status: warningTrigger ? "warning" : "normal",
+      kind: "sensor grid",
+      description: "Provides environmental, telemetry, and access-state awareness around the disrupted site.",
+      trend: warningTrigger ? "up" : "flat",
+      cascadeLevel: 2,
+      linkIds: ["ops-coordination-node", "power-control-node"],
+    },
+    {
+      id: "support-cell",
+      name: "Support Cell",
+      lat: lat + 0.03,
+      lon: lon + 0.046,
+      status: severity >= 64 ? "warning" : "normal",
+      kind: "support",
+      description: "Maintains local continuity actions while primary systems are degraded.",
+      trend: severity >= 64 ? "up" : "flat",
+      cascadeLevel: 2,
+      linkIds: ["ops-coordination-node"],
+    },
+  ];
+}
+
+function buildInfrastructureMarkers(incident, units, threats) {
+  const lat = toFiniteNumber(incident?.lat, DEFAULT_COORDINATES.lat);
+  const lon = toFiniteNumber(incident?.lon, DEFAULT_COORDINATES.lon);
+  const severity = toFiniteNumber(incident?.severity, DEFAULT_SEVERITY);
+  const criticalThreats = threats.filter((threat) => toFiniteNumber(threat.severity, 0) >= 60).length;
+  const warningTrigger = severity >= 45 || criticalThreats > 0;
+
+  const incidentName = incident?.label || incident?.title || "Incident node";
+  const locationName = incident?.location || "Operational site";
+  const attackType = incident?.attackType || "Cyber disruption";
+  const siteType = resolveSiteType(incident, attackType, locationName);
+
+  const infrastructure = buildSiteTemplates(siteType, {
+    lat,
+    lon,
+    severity,
+    warningTrigger,
+    locationName,
+    attackType,
+  }).map((node) => ({ ...node }));
+
+  const infrastructureLookup = Object.fromEntries(infrastructure.map((node) => [node.id, node]));
+  const anchorLinkIds = infrastructure.slice(0, 3).map((node) => node.id);
+
+  const incidentMarker = {
+    id: "incident-core",
+    name: incidentName,
+    lat,
+    lon,
+    status: "incident",
+    kind: "incident",
+    description:
+      incident?.description ||
+      "Primary disruption node. Traffic and dependent services are already showing service degradation.",
+    dependencies: anchorLinkIds.map((id) => infrastructureLookup[id]?.name).filter(Boolean),
+    linkIds: anchorLinkIds,
+    trend: "up",
+  };
+
+  const enrichedInfrastructure = infrastructure.map((node) => ({
+    ...node,
+    dependencies: (node.linkIds || []).map((id) => (id === "incident-core" ? incidentName : infrastructureLookup[id]?.name)).filter(Boolean),
+  }));
+
+  const unitAnchorIds = [infrastructure[0]?.id, infrastructure[infrastructure.length - 1]?.id].filter(Boolean);
+  const unitMarkers = (units || []).map((unit, index) => ({
+    id: unit.unit_id,
+    name: unit.name,
+    lat: toFiniteNumber(unit.latitude, lat + 0.035 + index * 0.01),
+    lon: toFiniteNumber(unit.longitude, lon + 0.12 + index * 0.02),
+    status:
+      unit.status === "engaged"
+        ? "critical"
+        : unit.status === "moving" || unit.status === "retasking"
+          ? "warning"
+          : "normal",
+    kind: "force",
+    description: `${formatRole(unit.role)} unit. ${unit.status?.toUpperCase() || "READY"} with grid reference ${unit.grid_ref || "unassigned"}.`,
+    dependencies: unitAnchorIds.map((id) => infrastructureLookup[id]?.name).filter(Boolean),
+    linkIds: unitAnchorIds,
+    meta: unit.grid_ref || formatRole(unit.role).toUpperCase(),
+    trend: unit.status === "moving" ? "up" : "flat",
+  }));
+
+  return [incidentMarker, ...enrichedInfrastructure, ...unitMarkers];
+}
+
+function buildThreatCircles(incident, threats) {
+  const fallbackLat = toFiniteNumber(incident?.lat, DEFAULT_COORDINATES.lat);
+  const fallbackLon = toFiniteNumber(incident?.lon, DEFAULT_COORDINATES.lon);
+  const fallbackSeverity = toFiniteNumber(incident?.severity, DEFAULT_SEVERITY);
+
+  const sources = threats?.length
+    ? threats
+    : [
+        {
+          threat_id: "fallback-threat",
+          latitude: fallbackLat,
+          longitude: fallbackLon,
+          severity: fallbackSeverity,
+        },
+      ];
+
+  return sources.map((threat, index) => {
+    const severity = toFiniteNumber(threat.severity, fallbackSeverity);
+    return {
+      id: threat.threat_id || `threat-${index}`,
+      lat: toFiniteNumber(threat.latitude, fallbackLat),
+      lon: toFiniteNumber(threat.longitude, fallbackLon),
+      radius: clamp(1800 + severity * 70 + index * 900, 2200, 8600),
+      tone: severity >= 70 ? "critical" : "warning",
+    };
+  });
+}
+
+function buildZones(incident) {
+  const lat = toFiniteNumber(incident?.lat, DEFAULT_COORDINATES.lat);
+  const lon = toFiniteNumber(incident?.lon, DEFAULT_COORDINATES.lon);
+  const severity = toFiniteNumber(incident?.severity, DEFAULT_SEVERITY);
+  const latSpread = 0.028 + severity * 0.00018;
+  const lonSpread = 0.04 + severity * 0.00024;
+
+  return [
+    {
+      id: "service-degradation-zone",
+      tone: "critical",
+      positions: [
+        [lat - latSpread, lon - lonSpread],
+        [lat - latSpread * 0.34, lon + lonSpread * 1.06],
+        [lat + latSpread * 0.5, lon + lonSpread * 0.92],
+        [lat + latSpread, lon - lonSpread * 0.24],
+        [lat + latSpread * 0.18, lon - lonSpread * 1.05],
+      ],
+    },
+    {
+      id: "containment-corridor",
+      tone: "warning",
+      positions: [
+        [lat - latSpread * 1.55, lon - lonSpread * 1.3],
+        [lat - latSpread * 0.85, lon + lonSpread * 1.46],
+        [lat + latSpread * 1.2, lon + lonSpread * 1.16],
+        [lat + latSpread * 1.52, lon - lonSpread * 0.82],
+        [lat + latSpread * 0.1, lon - lonSpread * 1.52],
+      ],
+    },
+  ];
+}
+
+function buildPolylines(markers) {
+  const markerLookup = Object.fromEntries(markers.map((marker) => [marker.id, marker]));
+  const connectionMap = new Map();
+
+  markers.forEach((marker) => {
+    (marker.linkIds || []).forEach((targetId) => {
+      const target = markerLookup[targetId];
+      if (!target) return;
+
+      const key = [marker.id, targetId].sort().join("::");
+      if (connectionMap.has(key)) return;
+
+      const statuses = [marker.status, target.status];
+      const tone = statuses.some((status) => status === "incident" || status === "critical")
+        ? "critical"
+        : statuses.includes("warning")
+          ? "warning"
+          : "normal";
+      const trafficLoad = marker.kind === "force" || target.kind === "force"
+        ? 28
+        : statuses.includes("incident")
+          ? 86
+          : statuses.includes("critical")
+            ? 62
+            : 36;
+
+      connectionMap.set(key, {
+        id: `link-${marker.id}-${targetId}`,
+        fromId: marker.id,
+        toId: targetId,
+        positions: [
+          [marker.lat, marker.lon],
+          [target.lat, target.lon],
+        ],
+        tone,
+        trafficLoad,
+      });
+    });
+  });
+
+  return Array.from(connectionMap.values());
+}
+
+function buildReadout(markers) {
+  const degradedNodes = markers.filter((marker) => marker.status === "critical" || marker.status === "incident").length;
+  const casRoutes = markers.filter((marker) => marker.kind === "force" && marker.name.toLowerCase().includes("viper")).length;
+
+  return [
+    { label: "Incident node", value: "Pinned", trend: "flat" },
+    { label: "Threat proximity", value: "Close", trend: "up" },
+    { label: "CAS routes", value: `${casRoutes}`, trend: casRoutes > 0 ? "down" : "flat" },
+    { label: "Nodes degraded", value: `${degradedNodes}/${markers.length}`, trend: degradedNodes > 2 ? "up" : "flat" },
+  ];
+}
+
+function buildAssessment(incident, analysis, threats, markers) {
+  return {
+    cause:
+      analysis?.cause ||
+      `Primary assessment indicates ${incident?.attackType || "cyber disruption"} aimed at paralyzing coordination rather than destroying physical assets outright.`,
+    projection:
+      analysis?.projection ||
+      "Without containment, failure is likely to spread from the incident node into customs, routing, and comms systems over the next operating cycle.",
+    risk:
+      analysis?.risk ||
+      (threats?.[0]?.summary
+        ? shortenText(threats[0].summary, 150)
+        : `${markers.filter((marker) => marker.status !== "normal").length} nodes are already showing degraded or unstable behavior.`),
+    actions:
+      analysis?.actions?.length
+        ? analysis.actions.slice(0, 3)
+        : [
+            "Isolate affected routing and customs workloads.",
+            "Re-segment satellite and sensor uplink paths.",
+            "Move quick reaction support closer to the incident node.",
+          ],
+  };
+}
+
+export default function TheatreBoard({
+  units = [],
+  threats = [],
+  incident,
+  title,
+  phase,
+  phaseIndex,
+  totalPhases,
+  onAdvancePhase,
+  analysis,
+}) {
+  const markers = useMemo(
+    () =>
+      buildInfrastructureMarkers(
+        {
+          ...incident,
+          title,
+        },
+        units,
+        threats,
+      ),
+    [incident, title, units, threats],
+  );
+
+  const circles = useMemo(() => buildThreatCircles(incident, threats), [incident, threats]);
+  const polygons = useMemo(() => buildZones(incident), [incident]);
+  const polylines = useMemo(() => buildPolylines(markers), [markers]);
+  const incidentOverlay = useMemo(
+    () => ({
+      title: title || incident?.label || "Cyber disruption on Gwadar logistics port",
+      description:
+        incident?.description ||
+        "Port scheduling, customs exchange, and dockside telemetry are degrading in parallel. Operators are seeing cascading infrastructure failures across dependent logistics systems.",
+      tags: [incident?.attackType || "Cyber disruption", incident?.location || "Gwadar", "Severity"],
+      severity: toFiniteNumber(incident?.severity, DEFAULT_SEVERITY),
+      confidence: resolveConfidence(threats),
+    }),
+    [incident, title, threats],
+  );
+
+  const readout = useMemo(() => buildReadout(markers), [markers]);
+  const assessmentOverlay = useMemo(
+    () => buildAssessment(incident, analysis, threats, markers),
+    [incident, analysis, threats, markers],
+  );
 
   return (
-    <div
-      className="rounded-[28px] border border-white/10 bg-slate-950/70 p-5 backdrop-blur"
-      style={{ contain: "layout" }}
-    >
-      {/* Header */}
-      <div className="mb-4 flex items-end justify-between">
-        <div>
-          <p className="text-[0.65rem] uppercase tracking-[0.34em] text-cyan-300/70">Theatre Board</p>
-          <h3 className="mt-1 text-lg font-semibold text-white">{title || "Regional Operations"}</h3>
-        </div>
-        {phase && (
-          <span className="rounded-full border border-white/10 bg-slate-900/80 px-3 py-1 text-[0.62rem] uppercase tracking-widest text-slate-400">
-            {phase}
-          </span>
-        )}
-      </div>
-
-      {/* SVG board */}
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        style={{ maxHeight: 440, background: "radial-gradient(ellipse at 50% 40%,rgba(8,17,31,0.95),rgba(2,6,23,1))" }}
-      >
-        <defs>
-          <radialGradient id="tb-glow-incident" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="#f43f5e" stopOpacity={0} />
-          </radialGradient>
-          <radialGradient id="tb-glow-cas" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.2} />
-            <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
-          </radialGradient>
-          <filter id="tb-blur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="6" />
-          </filter>
-        </defs>
-
-        <GridLines W={W} H={H} />
-
-        {/* Incident marker (if present) */}
-        {projectedIncident && (
-          <g>
-            <circle cx={projectedIncident.x} cy={projectedIncident.y} r={36} fill="url(#tb-glow-incident)" filter="url(#tb-blur)" />
-            <PulseRing cx={projectedIncident.x} cy={projectedIncident.y} color="#f43f5e" r={14} />
-            <polygon
-              points={`${projectedIncident.x},${projectedIncident.y - 10} ${projectedIncident.x + 8},${projectedIncident.y + 4} ${projectedIncident.x - 8},${projectedIncident.y + 4}`}
-              fill="#f43f5e"
-              stroke="#fda4af"
-              strokeWidth={0.8}
-            />
-            <text x={projectedIncident.x} y={projectedIncident.y + 24} textAnchor="middle" fill="#fda4af" fontSize={9} fontWeight={600}>
-              {incident?.label || "INCIDENT"}
-            </text>
-          </g>
-        )}
-
-        {/* Response arc from CAS to incident */}
-        {projectedIncident && projectedUnits.filter((u) => u.role === "cas").map((cas) => (
-          <g key={`arc-${cas.unit_id}`}>
-            <line
-              x1={cas.x} y1={cas.y} x2={projectedIncident.x} y2={projectedIncident.y}
-              stroke="#f59e0b" strokeWidth={1.2} strokeDasharray="6 4" opacity={0.5}
-            >
-              <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1.5s" repeatCount="indefinite" />
-            </line>
-          </g>
-        ))}
-
-        {/* Threats */}
-        {projectedThreats.map((t) => (
-          <g key={t.threat_id}>
-            <PulseRing cx={t.x} cy={t.y} color="#ef4444" r={10} />
-            <rect x={t.x - 7} y={t.y - 7} width={14} height={14} rx={2}
-              fill="#ef4444" fillOpacity={0.25} stroke="#ef4444" strokeWidth={1.2}
-              transform={`rotate(45,${t.x},${t.y})`}
-            />
-            <text x={t.x} y={t.y + 22} textAnchor="middle" fill="#fca5a5" fontSize={8} fontWeight={500}>
-              {t.label.length > 20 ? t.label.slice(0, 18) + "…" : t.label}
-            </text>
-            <text x={t.x} y={t.y + 32} textAnchor="middle" fill="#fca5a5" fontSize={7} opacity={0.7}>
-              SEV {t.severity} · CONF {t.confidence}%
-            </text>
-          </g>
-        ))}
-
-        {/* Friendly units */}
-        {projectedUnits.map((u) => {
-          const color = ROLE_COLORS[u.role] || "#94a3b8";
-          const icon = ROLE_ICONS[u.role] || "●";
-          const isCas = u.role === "cas";
-          return (
-            <g key={u.unit_id}>
-              {isCas && <circle cx={u.x} cy={u.y} r={20} fill="url(#tb-glow-cas)" filter="url(#tb-blur)" />}
-              <circle cx={u.x} cy={u.y} r={13} fill="rgba(2,6,23,0.8)" stroke={color} strokeWidth={1.5} />
-              <text x={u.x} y={u.y + 4} textAnchor="middle" fill={color} fontSize={11} fontWeight={700}>
-                {icon}
-              </text>
-              <text x={u.x} y={u.y - 18} textAnchor="middle" fill={color} fontSize={8.5} fontWeight={600}>
-                {u.name}
-              </text>
-              <text x={u.x} y={u.y + 28} textAnchor="middle" fill="rgba(148,163,184,0.7)" fontSize={7}>
-                {u.grid_ref || u.role.toUpperCase()} · {u.status.toUpperCase()}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Legend */}
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 px-1 text-[0.62rem] text-slate-400">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full bg-cyan-400/80" /> Friendly
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full bg-red-500/80" /> Threat
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full bg-rose-400/80" /> Incident
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 bg-amber-400/80" style={{ clipPath: "polygon(50% 0%,100% 100%,0% 100%)" }} /> CAS route
-        </span>
-        {Object.entries(ROLE_ICONS).map(([role, icon]) => (
-          <span key={role} className="flex items-center gap-1" style={{ color: ROLE_COLORS[role] }}>
-            <span className="text-[0.7rem]">{icon}</span>{" "}
-            <span className="text-slate-500">{role}</span>
-          </span>
-        ))}
-      </div>
-    </div>
+    <InteractiveMap
+      markers={markers}
+      circles={circles}
+      polygons={polygons}
+      polylines={polylines}
+      incident={incidentOverlay}
+      readout={readout}
+      assessment={assessmentOverlay}
+      phaseLabel={phase}
+      phaseIndex={phaseIndex}
+      totalPhases={totalPhases}
+      onAdvancePhase={onAdvancePhase}
+    />
   );
 }

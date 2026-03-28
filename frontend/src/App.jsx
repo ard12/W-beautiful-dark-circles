@@ -2141,6 +2141,11 @@ function App() {
     [incidentPoint],
   );
 
+  const isConsoleAdvanceDisabled = loading || Boolean(
+    effectiveWorldState && effectiveWorldState.current_phase_index >= effectiveWorldState.total_phases - 1,
+  );
+  const canAdvanceConsoleOverlay = Boolean(effectiveWorldState) && !isConsoleAdvanceDisabled;
+
   if (surface === "landing") {
     return <LandingPage onNavigate={navigate} />;
   }
@@ -2223,7 +2228,7 @@ function App() {
             <button
               type="button"
               onClick={handleConsoleAdvance}
-              disabled={loading || (effectiveWorldState && effectiveWorldState.current_phase_index >= effectiveWorldState.total_phases - 1)}
+              disabled={isConsoleAdvanceDisabled}
               className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
             >
               Next System Injection
@@ -2354,13 +2359,26 @@ function App() {
                 lat: incidentPoint?.lat ?? 34.5261,
                 lon: incidentPoint?.lon ?? 74.2612,
                 label: incident.title || "INCIDENT",
+                location: incident.location,
+                attackType: incident.attackType,
+                severity: incident.severity,
+                description: incident.description,
               }}
-              title={activeThreat ? activeThreat.label : incident.title}
+              title={incident.title || activeThreat?.label}
               phase={effectiveWorldState?.phase_title || (monitorHandoff ? "Monitor handoff" : "")}
+              phaseIndex={effectiveWorldState?.current_phase_index}
+              totalPhases={effectiveWorldState?.total_phases}
+              onAdvancePhase={canAdvanceConsoleOverlay ? handleConsoleAdvance : undefined}
+              analysis={{
+                cause: consoleModel.primaryIntent,
+                projection: consoleModel.implicationSummary,
+                risk: consoleModel.trust.weakEvidence?.[0] || consoleModel.alternateIntents?.[0],
+                actions: responsePaths.slice(0, 3).map((path) => path.title),
+              }}
             />
 
             <StrategicGlobe
-              title={activeThreat ? activeThreat.label : incident.title}
+              title={incident.title || activeThreat?.label}
               subtitle="The globe acts as the main analysis surface: attacked site, risk corridors, and the consequence spread of the chosen response path."
               incidentPoint={incidentPoint}
               markers={mergedMarkers}
