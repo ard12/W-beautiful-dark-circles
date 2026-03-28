@@ -16,6 +16,15 @@ logger = logging.getLogger("sentinel.sitrep")
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 
+def _best_effort_enrich_sitrep(output: SitrepOutput, state: WorldState) -> SitrepOutput:
+    try:
+        from ai_reasoning import enrich_sitrep_output
+        return enrich_sitrep_output(output, state)
+    except Exception as exc:
+        logger.warning("SITREP enrichment failed, returning raw output: %s", exc)
+        return output
+
+
 async def generate_sitrep(state: WorldState, doctrine: str = "", area_briefing: str = "") -> SitrepOutput:
     """
     Generate a SITREP from current world state.
@@ -26,12 +35,11 @@ async def generate_sitrep(state: WorldState, doctrine: str = "", area_briefing: 
         fallback = FALLBACK_SITREPS.get(("alpha", state.current_phase_index))
         if fallback:
             logger.info(f"FALLBACK_MODE: returning pre-authored SITREP for phase {state.current_phase_index}")
-            from ai_reasoning import enrich_sitrep_output
-            return enrich_sitrep_output(fallback, state)
+            return _best_effort_enrich_sitrep(fallback, state)
 
     try:
         # Import here to avoid circular imports
-        from ai_reasoning import build_ai_context, _call_llm, load_doctrine, load_area_briefing, enrich_sitrep_output
+        from ai_reasoning import build_ai_context, _call_llm, load_doctrine, load_area_briefing
 
         if not doctrine:
             doctrine = load_doctrine()
@@ -47,17 +55,15 @@ async def generate_sitrep(state: WorldState, doctrine: str = "", area_briefing: 
             user_prompt=user_prompt,
         )
 
-        return enrich_sitrep_output(SitrepOutput.model_validate(data), state)
+        return _best_effort_enrich_sitrep(SitrepOutput.model_validate(data), state)
 
     except Exception as e:
         logger.warning(f"SITREP generation failed: {e}. Using fallback.")
         fallback = FALLBACK_SITREPS.get(("alpha", state.current_phase_index))
         if fallback:
-            from ai_reasoning import enrich_sitrep_output
-            return enrich_sitrep_output(fallback, state)
+            return _best_effort_enrich_sitrep(fallback, state)
         # Ultimate fallback
-        from ai_reasoning import enrich_sitrep_output
-        return enrich_sitrep_output(SitrepOutput(
+        return _best_effort_enrich_sitrep(SitrepOutput(
             situation=f"Phase {state.current_phase_index}: {state.phase_title}. Theater: {state.theater_name}. {len(state.units)} friendly units, {len(state.threats)} active threats.",
             threats=f"{len(state.threats)} threat(s) active. Threat score: {state.scorecard.threat_score:.0f}/100." if state.threats else "No active threats confirmed.",
             friendly_status=f"{len(state.units)} units operational. Readiness: {state.scorecard.readiness_score:.0f}/100.",

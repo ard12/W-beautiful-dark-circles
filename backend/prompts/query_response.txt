@@ -10,22 +10,10 @@ RULES:
 - Reference specific units, positions, and resource levels.
 - Keep the answer concise (2-4 sentences).
 - Include 2-3 supporting data points.
-- Include provenance for the answer: threat IDs, unit IDs, recent event log lines, and confidence drivers.
 - Return ONLY valid JSON matching this exact schema, no other text:
 
 {
   "answer": "string",
   "supporting_points": ["string", "string"],
-  "confidence": 0.0,
-  "based_on_threat_ids": ["string"],
-  "based_on_unit_ids": ["string"],
-  "based_on_event_log": ["string"],
-  "confidence_drivers": [
-    {
-      "label": "string",
-      "score": 0,
-      "reason": "string",
-      "impact": "supports|limits"
-    }
-  ]
+  "confidence": 0.0
 }

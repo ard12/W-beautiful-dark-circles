@@ -135,9 +135,7 @@ def _collect_matching_threat_ids(state: WorldState, text: str) -> list[str]:
     ]
     if matched:
         return _unique_preserving_order(matched)
-
-    ranked = sorted(state.threats, key=lambda threat: (threat.severity, threat.confidence), reverse=True)
-    return [threat.threat_id for threat in ranked[:2]]
+    return []
 
 
 def _collect_matching_unit_ids(state: WorldState, text: str) -> list[str]:
@@ -152,16 +150,7 @@ def _collect_matching_unit_ids(state: WorldState, text: str) -> list[str]:
     ]
     if matched:
         return _unique_preserving_order(matched)
-
-    stressed_units = [
-        unit.unit_id
-        for unit in state.units
-        if unit.status != "ready" or min(unit.resources.fuel, unit.resources.ammo, unit.resources.medical) < 60
-    ]
-    if stressed_units:
-        return _unique_preserving_order(stressed_units[:2])
-
-    return [unit.unit_id for unit in state.units[:1]]
+    return []
 
 
 def _collect_relevant_event_log(state: WorldState, text: str, threat_ids: list[str], unit_ids: list[str]) -> list[str]:
@@ -193,8 +182,7 @@ def _collect_relevant_event_log(state: WorldState, text: str, threat_ids: list[s
     ]
     if matched_events:
         return _unique_preserving_order(matched_events)[:3]
-
-    return recent_events[-3:]
+    return []
 
 
 def _build_confidence_drivers(state: WorldState) -> list[dict]:
@@ -259,6 +247,43 @@ def _merge_confidence_drivers(existing: list, derived: list[dict]) -> list[dict]
     return merged
 
 
+def _merge_provenance_lists(*value_sets: list[str]) -> list[str]:
+    merged: list[str] = []
+    for values in value_sets:
+        merged.extend(values or [])
+    return _unique_preserving_order(merged)
+
+
+def _collect_recommendation_provenance(recommendations: list[Recommendation]) -> dict:
+    return {
+        "based_on_threat_ids": _merge_provenance_lists(*[
+            recommendation.based_on_threat_ids for recommendation in recommendations
+        ]),
+        "based_on_unit_ids": _merge_provenance_lists(*[
+            recommendation.based_on_unit_ids for recommendation in recommendations
+        ]),
+        "based_on_event_log": _merge_provenance_lists(*[
+            recommendation.based_on_event_log for recommendation in recommendations
+        ])[:3],
+        "confidence_drivers": _merge_confidence_drivers(
+            [],
+            [
+                driver
+                for recommendation in recommendations
+                for driver in recommendation.confidence_drivers
+            ],
+        ),
+    }
+
+
+def _best_effort_enrich(model, state: WorldState, text: str):
+    try:
+        return _enrich_with_provenance(model, state, text)
+    except Exception as exc:
+        logger.warning("Provenance enrichment failed for %s: %s", model.__class__.__name__, exc)
+        return model
+
+
 def _enrich_with_provenance(model, state: WorldState, text: str):
     threat_ids = _collect_matching_threat_ids(state, text)
     unit_ids = _collect_matching_unit_ids(state, text)
@@ -287,7 +312,7 @@ def _enrich_with_provenance(model, state: WorldState, text: str):
 
 def enrich_reasoning_output(output: ReasoningOutput, state: WorldState) -> ReasoningOutput:
     enriched_recommendations = [
-        _enrich_with_provenance(
+        _best_effort_enrich(
             recommendation,
             state,
             " ".join(filter(None, [recommendation.action, recommendation.rationale])),
@@ -304,19 +329,39 @@ def enrich_reasoning_output(output: ReasoningOutput, state: WorldState) -> Reaso
         *[recommendation.rationale for recommendation in enriched_recommendations],
     ]))
 
-    return _enrich_with_provenance(
+    enriched_output = _best_effort_enrich(
         output.model_copy(update={"recommendations": enriched_recommendations}),
         state,
         reasoning_text,
     )
+    recommendation_provenance = _collect_recommendation_provenance(enriched_recommendations)
+    return ReasoningOutput.model_validate({
+        **enriched_output.model_dump(),
+        "based_on_threat_ids": _merge_provenance_lists(
+            enriched_output.based_on_threat_ids,
+            recommendation_provenance["based_on_threat_ids"],
+        ),
+        "based_on_unit_ids": _merge_provenance_lists(
+            enriched_output.based_on_unit_ids,
+            recommendation_provenance["based_on_unit_ids"],
+        ),
+        "based_on_event_log": _merge_provenance_lists(
+            enriched_output.based_on_event_log,
+            recommendation_provenance["based_on_event_log"],
+        )[:3],
+        "confidence_drivers": _merge_confidence_drivers(
+            enriched_output.confidence_drivers,
+            recommendation_provenance["confidence_drivers"],
+        ),
+    })
 
 
 def enrich_query_response(output: QueryResponse, state: WorldState) -> QueryResponse:
-    return _enrich_with_provenance(output, state, " ".join([output.answer, *output.supporting_points]))
+    return _best_effort_enrich(output, state, " ".join([output.answer, *output.supporting_points]))
 
 
 def enrich_projection_output(output: ProjectionOutput, state: WorldState, action_description: str = "") -> ProjectionOutput:
-    return _enrich_with_provenance(
+    return _best_effort_enrich(
         output,
         state,
         " ".join([action_description, output.projected_outcome, *output.expected_changes, *output.new_risks]),
@@ -324,7 +369,7 @@ def enrich_projection_output(output: ProjectionOutput, state: WorldState, action
 
 
 def enrich_sitrep_output(output, state: WorldState):
-    return _enrich_with_provenance(
+    return _best_effort_enrich(
         output,
         state,
         " ".join([

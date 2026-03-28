@@ -13,22 +13,10 @@ RULES:
 - Reference specific units, grids, and resource impacts.
 - Identify 1-2 new risks that may emerge as a consequence.
 - Do not invent facts not present in the state data.
-- Include provenance for the projection: threat IDs, unit IDs, recent event log lines, and confidence drivers.
 - Return ONLY valid JSON matching this exact schema, no other text:
 
 {
   "projected_outcome": "string",
   "expected_changes": ["string", "string"],
-  "new_risks": ["string"],
-  "based_on_threat_ids": ["string"],
-  "based_on_unit_ids": ["string"],
-  "based_on_event_log": ["string"],
-  "confidence_drivers": [
-    {
-      "label": "string",
-      "score": 0,
-      "reason": "string",
-      "impact": "supports|limits"
-    }
-  ]
+  "new_risks": ["string"]
 }
