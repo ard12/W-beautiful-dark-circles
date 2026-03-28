@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import StrategicGlobe from "./components/StrategicGlobe";
 import WorldMonitorGlobe from "./components/WorldMonitorGlobe";
 import WorldMonitorMap from "./components/WorldMonitorMap";
+import TheatreBoard from "./components/TheatreBoard";
 import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
 import { useSentinelState } from "./hooks/useSentinelState";
 import { useLandingData } from "./hooks/useLandingData";
@@ -1654,6 +1655,18 @@ function App() {
           </div>
 
           <div className="space-y-4">
+            <TheatreBoard
+              units={worldState?.units || []}
+              threats={worldState?.threats || []}
+              incident={{
+                lat: incidentPoint?.lat ?? 34.5261,
+                lon: incidentPoint?.lon ?? 74.2612,
+                label: incident.title || "INCIDENT",
+              }}
+              title={activeThreat ? activeThreat.type : incident.title}
+              phase={worldState?.phase_title || ""}
+            />
+
             <StrategicGlobe
               title={activeThreat ? activeThreat.type : incident.title}
               subtitle="The globe acts as the main analysis surface: attacked site, risk corridors, and the consequence spread of the chosen response path."
