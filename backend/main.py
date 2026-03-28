@@ -5,6 +5,7 @@ from models import (
     WorldState, QueryResponse, SitrepOutput, ProjectionOutput,
     IncidentInput, FullReportOutput, ReasoningOutput,
     UnitState, ThreatState, AlertState, ScoreCard, ResourceState,
+    HeadlinesResponse, MarketSnapshot,
 )
 from world_state import WorldStateManager
 from sitrep import generate_sitrep
@@ -90,7 +91,28 @@ async def sitrep():
 
 
 # ---------------------------------------------------------------------------
-# Prompt-driven chatbot endpoints
+# Landing feed proxy endpoints (feature/frontend)
+# ---------------------------------------------------------------------------
+
+@app.get("/feed/headlines", response_model=HeadlinesResponse)
+def get_headlines():
+    import json
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "landing_feed.json")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@app.get("/feed/market-snapshot", response_model=MarketSnapshot)
+def get_market_snapshot():
+    import json
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "market_snapshot.json")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+# ---------------------------------------------------------------------------
+# Prompt-driven chatbot endpoints (main / ai-feature)
 # ---------------------------------------------------------------------------
 
 PROMPT_PLACEHOLDERS = [
@@ -179,7 +201,7 @@ def _build_world_state_from_incident(incident: IncidentInput) -> WorldState:
     scorecard = compute_scorecard([unit], [threat])
 
     return WorldState(
-        theater_name=f"{incident.location} — {incident.owner_country}",
+        theater_name=f"{incident.location} \u2014 {incident.owner_country}",
         current_phase_index=0,
         phase_title="Incident reported",
         objective=f"Assess and respond to {incident.attack_type} by {incident.actor} on {incident.attacked_site}",

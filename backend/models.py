@@ -97,6 +97,122 @@ class WorldState(BaseModel):
     event_log: List[str] = []
 
 
+class HeadlineItem(BaseModel):
+    source: str
+    tags: List[str]
+    headline: str
+    age: str
+    region: Optional[str] = None
+
+class ForecastItem(BaseModel):
+    channel: str
+    headline: str
+    age: str
+
+class RegionalNewsPanel(BaseModel):
+    title: str
+    count: str
+    items: List[HeadlineItem]
+
+class PredictionsPanel(BaseModel):
+    market: str
+    question: str
+    volume: str
+    closeDate: str
+    yes: int
+    no: int
+    badge: str
+
+class PostureItem(BaseModel):
+    label: str
+    level: str
+    air: int
+    sea: int
+    direction: str
+
+class AIInsightBrief(BaseModel):
+    title: str
+    text: str
+
+class HeadlinesResponse(BaseModel):
+    news: List[HeadlineItem]
+    intel: List[HeadlineItem]
+    world_news: List[HeadlineItem]
+    intel_feed: Optional[List[HeadlineItem]] = None
+    forecasts: Optional[List[ForecastItem]] = None
+    regional_news: Optional[List[RegionalNewsPanel]] = None
+    predictions: Optional[PredictionsPanel] = None
+    strategic_posture: Optional[List[PostureItem]] = None
+    ai_insight: Optional[AIInsightBrief] = None
+    updated_at: str
+
+class MarketTicker(BaseModel):
+    name: str
+    ticker: str
+    price: str
+    delta: str
+
+class CommodityItem(BaseModel):
+    name: str
+    price: str
+    delta: str
+    trend: List[int]
+
+class MarketEnergyItem(BaseModel):
+    label: str
+    value: str
+    delta: str
+    tone: str
+
+class MacroStressItem(BaseModel):
+    label: str
+    value: int
+
+class CompositeMetric(BaseModel):
+    label: str
+    value: int
+
+class StrategicRiskData(BaseModel):
+    score: int
+    band: str
+    trend: str
+    infrastructureLinks: int
+    composite: List[CompositeMetric]
+
+class CorrelationItem(BaseModel):
+    title: str
+    score: int
+    description: str
+
+class CountryIntelItem(BaseModel):
+    country: str
+    score: int
+    breakdown: str
+
+class CompositeSignal(BaseModel):
+    label: str
+    value: int
+
+class FinanceRadarData(BaseModel):
+    stockExchanges: int
+    commodities: int
+    cryptoPairs: int
+    centralBanks: int
+    compositeScore: int
+    compositeSignals: List[CompositeSignal]
+
+class MarketSnapshot(BaseModel):
+    metals: List[CommodityItem]
+    energy: List[MarketEnergyItem]
+    equities: List[MarketTicker]
+    macro_stress: List[MacroStressItem]
+    strategic_risk: Optional[StrategicRiskData] = None
+    cross_stream_correlation: Optional[List[CorrelationItem]] = None
+    country_intelligence: Optional[List[CountryIntelItem]] = None
+    finance_radar: Optional[FinanceRadarData] = None
+    updated_at: str
+
+
 class IncidentInput(BaseModel):
     attacked_site: str
     location: str
@@ -111,3 +227,4 @@ class FullReportOutput(BaseModel):
     reasoning: ReasoningOutput
     sitrep: SitrepOutput
     scores: dict
+

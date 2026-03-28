@@ -38,6 +38,19 @@ export const getSitrep = async () => {
     return res.json();
 };
 
+
+export const getHeadlines = async () => {
+    const res = await fetch(`${BASE_URL}/feed/headlines`);
+    if (!res.ok) throw new Error("API error");
+    return res.json();
+};
+
+export const getMarketSnapshot = async () => {
+    const res = await fetch(`${BASE_URL}/feed/market-snapshot`);
+    if (!res.ok) throw new Error("API error");
+    return res.json();
+};
+
 export const getPromptPlaceholders = async () => {
     const res = await fetch(`${BASE_URL}/prompts/placeholders`);
     return res.json();
@@ -51,3 +64,4 @@ export const executePrompt = async (incidentData) => {
     });
     return res.json();
 };
+

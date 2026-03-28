@@ -1,0 +1,140 @@
+{
+  "news": [
+    {
+      "source": "Bloomberg",
+      "tags": ["BREAKING", "CONFLICT"],
+      "headline": "[LIVE] Strait of Hormuz remains blocked — coalition naval assets repositioning as Iran deploys additional coastal defense systems",
+      "age": "12 min ago"
+    },
+    {
+      "source": "Reuters",
+      "tags": ["ALERT", "MARKETS"],
+      "headline": "[LIVE] Brent crude surges past $142 as Gulf shipping insurance premiums hit record levels",
+      "age": "28 min ago"
+    },
+    {
+      "source": "AP News",
+      "tags": ["ALERT", "CYBER"],
+      "headline": "[LIVE] Coordinated cyber campaign targets port logistics systems across three Gulf states",
+      "age": "1 hour ago"
+    }
+  ],
+  "intel": [
+    {
+      "source": "Atlantic Council",
+      "tags": ["ANALYSIS", "MILITARY"],
+      "headline": "[LIVE] Post-START nuclear posture review signals new deterrence calculus for Indo-Pacific theater",
+      "age": "45 min ago"
+    },
+    {
+      "source": "IISS",
+      "tags": ["ALERT", "CONFLICT"],
+      "headline": "[LIVE] Escalation ladder analysis: Iran crisis enters window of maximum instability",
+      "age": "2 hours ago"
+    },
+    {
+      "source": "Al Jazeera",
+      "tags": ["CAUTION", "DIPLOMATIC"],
+      "headline": "[LIVE] Back-channel diplomacy intensifies as regional mediators propose 72-hour ceasefire framework",
+      "age": "3 hours ago"
+    }
+  ],
+  "world_news": [
+    {
+      "source": "BBC World",
+      "tags": ["BREAKING", "CYBER"],
+      "headline": "[LIVE] State-backed hackers escalate campaign against allied government communication networks",
+      "age": "18 min ago"
+    },
+    {
+      "source": "Financial Times",
+      "tags": ["ALERT", "ECONOMIC"],
+      "headline": "[LIVE] Global supply chain stress index reaches highest level since 2022 amid Gulf disruption",
+      "age": "55 min ago"
+    },
+    {
+      "source": "Nikkei Asia",
+      "tags": ["ALERT", "TRADE"],
+      "headline": "[LIVE] Asian shipping lines divert from Hormuz corridor — container rates spike 340%",
+      "age": "1 hour ago"
+    }
+  ],
+  "intel_feed": [
+    {
+      "source": "Atlantic Council",
+      "tags": ["ANALYSIS", "MILITARY"],
+      "headline": "[LIVE] Force posture analysis: US carrier group reposition signals extended presence commitment",
+      "age": "30 min ago"
+    },
+    {
+      "source": "CSIS",
+      "tags": ["ALERT", "CONFLICT"],
+      "headline": "[LIVE] Escalation dynamics report: proxy corridor activity intensifying across three frontiers",
+      "age": "2 hours ago"
+    },
+    {
+      "source": "Chatham House",
+      "tags": ["CAUTION", "DIPLOMATIC"],
+      "headline": "[LIVE] Gulf mediation window narrowing as hardline faction gains influence in Tehran",
+      "age": "4 hours ago"
+    }
+  ],
+  "forecasts": [
+    { "channel": "Military Activity", "headline": "[LIVE] Proxy force restructuring across the frontier corridor continues — follow-on operations likely within 48 hours", "age": "20 min ago" },
+    { "channel": "Cyber Threats", "headline": "[LIVE] Next disruption wave expected to target financial messaging systems and civilian telecom infrastructure", "age": "1 hour ago" },
+    { "channel": "Supply Strain", "headline": "[LIVE] Energy repricing and shipping diversion cascading into broader macro stress — insurance and commodity markets now correlated", "age": "3 hours ago" }
+  ],
+  "regional_news": [
+    {
+      "title": "Latin America",
+      "count": "LIVE",
+      "items": [
+        { "source": "Insight Crime", "tags": ["ALERT", "CONFLICT"], "headline": "[LIVE] Colombia-Ecuador border military operations expand amid rising cartel fragmentation", "age": "1 hour ago" },
+        { "source": "BBC Latin America", "tags": ["ALERT", "DISASTER"], "headline": "[LIVE] Political backlash grows as civilian casualties mount in southern Colombia operations", "age": "3 hours ago" }
+      ]
+    },
+    {
+      "title": "Asia-Pacific",
+      "count": "LIVE",
+      "items": [
+        { "source": "CNA", "tags": ["DIPLOMATIC"], "headline": "[LIVE] Mongolian government crisis deepens — opposition demands snap elections within 30 days", "age": "45 min ago" },
+        { "source": "Nikkei", "tags": ["ALERT", "MARKETS"], "headline": "[LIVE] Regional semiconductor supply chain faces disruption as shipping routes rebalance", "age": "2 hours ago" }
+      ]
+    },
+    {
+      "title": "Government",
+      "count": "LIVE",
+      "items": [
+        { "source": "DOJ", "tags": ["ALERT", "TERRORISM"], "headline": "[LIVE] Force protection posture elevated at all CENTCOM installations following explosive device incident", "age": "1 hour ago" },
+        { "source": "FEMA", "tags": ["NOTICE"], "headline": "[LIVE] Emergency resilience funding allocated for critical port and grid infrastructure hardening", "age": "5 hours ago" }
+      ]
+    },
+    {
+      "title": "Think Tanks",
+      "count": "LIVE",
+      "items": [
+        { "source": "Atlantic Council", "tags": ["ALERT", "MILITARY"], "headline": "[LIVE] Post-New START force posture recalibration reshaping extended deterrence commitments", "age": "1 hour ago" },
+        { "source": "Foreign Policy", "tags": ["ALERT", "ECONOMIC"], "headline": "[LIVE] Iran war economic impact assessment: winners, losers, and second-order cascades", "age": "4 hours ago" }
+      ]
+    }
+  ],
+  "predictions": {
+    "market": "Polymarket",
+    "question": "Will Mojtaba Khamenei be head of state in Iran by the end of 2026?",
+    "volume": "$6.2M",
+    "closeDate": "31 Dec 2026",
+    "yes": 54,
+    "no": 46,
+    "badge": "LEANING YES"
+  },
+  "strategic_posture": [
+    { "label": "Iran Theater", "level": "CRIT", "air": 18, "sea": 42, "direction": "escalating → Iran" },
+    { "label": "Taiwan Strait", "level": "CRIT", "air": 11, "sea": 51, "direction": "stable → Taiwan" },
+    { "label": "Baltic Theater", "level": "ELEV", "air": 7, "sea": 22, "direction": "monitoring → Baltic" }
+  ],
+  "ai_insight": {
+    "title": "World Brief",
+    "text": "[LIVE] Coalition naval operations near Strait of Hormuz have entered a sustained posture phase. Iran's deployment of additional coastal defense assets signals a willingness to maintain the blockade. Energy markets, insurance pricing, and diplomatic back-channels are now the three primary indicators of near-term trajectory."
+  },
+  "updated_at": "2026-03-28T05:15:00Z"
+}
