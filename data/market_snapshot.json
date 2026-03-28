@@ -1,0 +1,86 @@
+{
+  "metals": [
+    { "name": "Gold", "price": "$4,587", "delta": "+3.12%", "trend": [42, 55, 51, 64, 76, 72, 78] },
+    { "name": "Silver", "price": "$71.24", "delta": "+3.41%", "trend": [30, 36, 41, 49, 47, 53, 59] },
+    { "name": "Copper", "price": "$5.38", "delta": "-0.71%", "trend": [65, 62, 59, 55, 52, 49, 47] },
+    { "name": "Platinum", "price": "$1,218", "delta": "+1.52%", "trend": [33, 37, 40, 44, 46, 49, 54] },
+    { "name": "Palladium", "price": "$1,028", "delta": "-1.42%", "trend": [74, 70, 65, 61, 56, 53, 49] },
+    { "name": "Aluminum", "price": "$2,614", "delta": "+0.88%", "trend": [43, 47, 46, 52, 56, 60, 63] }
+  ],
+  "energy": [
+    { "label": "Brent crude ($/bbl)", "value": "$142.80", "delta": "+8.4%", "tone": "down" },
+    { "label": "US nat gas storage (bcf)", "value": "1,793 Bcf", "delta": "-36", "tone": "up" },
+    { "label": "Tanker insurance stress", "value": "89/100", "delta": "+15", "tone": "down" }
+  ],
+  "equities": [
+    { "name": "Apple", "ticker": "AAPL", "price": "$246.12", "delta": "-2.69%" },
+    { "name": "Amazon", "ticker": "AMZN", "price": "$195.44", "delta": "-5.12%" },
+    { "name": "Broadcom", "ticker": "AVGO", "price": "$294.78", "delta": "-3.91%" },
+    { "name": "Reliance", "ticker": "RELIANCE", "price": "₹3,082", "delta": "-1.24%" }
+  ],
+  "macro_stress": [
+    { "label": "Energy shock", "value": 86 },
+    { "label": "Shipping pressure", "value": 94 },
+    { "label": "Dollar squeeze", "value": 63 },
+    { "label": "Sanctions drag", "value": 71 }
+  ],
+  "strategic_risk": {
+    "score": 78,
+    "band": "High",
+    "trend": "Rising",
+    "infrastructureLinks": 1891,
+    "composite": [
+      { "label": "Escalation velocity", "value": 89 },
+      { "label": "Market stress", "value": 82 },
+      { "label": "Civilian spillover", "value": 54 },
+      { "label": "Alliance signaling", "value": 73 }
+    ]
+  },
+  "cross_stream_correlation": [
+    {
+      "title": "Military ↔ Economic",
+      "score": 94,
+      "description": "[LIVE] Naval blockade, energy shock, and insurance repricing now fully correlated in same escalation window."
+    },
+    {
+      "title": "Disaster ↔ Infrastructure",
+      "score": 56,
+      "description": "[LIVE] Grid fragility and port disruption emerging as secondary amplifiers of primary conflict pressure."
+    },
+    {
+      "title": "Cyber ↔ Escalation",
+      "score": 88,
+      "description": "[LIVE] Cyber disruption campaigns now confirmed as precursor to kinetic operations in two theaters."
+    },
+    {
+      "title": "Markets ↔ Diplomacy",
+      "score": 79,
+      "description": "[LIVE] Energy futures and safe-haven flows outpacing diplomatic messaging by 72 hours."
+    }
+  ],
+  "country_intelligence": [
+    { "country": "Iran", "score": 100, "breakdown": "MIL 20 ECO 10 CYB 9 DIP 10 CIV 9 INF 10 MAR 10 SPC 5 MKT 8 CLM 4 NAR 7 SUP 6" },
+    { "country": "Russia", "score": 88, "breakdown": "MIL 17 ECO 7 CYB 9 DIP 9 CIV 5 INF 8 MAR 7 SPC 4 MKT 7 CLM 4 NAR 7 SUP 6" },
+    { "country": "Pakistan", "score": 84, "breakdown": "MIL 16 ECO 8 CYB 7 DIP 8 CIV 7 INF 8 MAR 6 SPC 3 MKT 6 CLM 4 NAR 7 SUP 6" },
+    { "country": "Israel", "score": 79, "breakdown": "MIL 17 ECO 5 CYB 9 DIP 8 CIV 5 INF 7 MAR 5 SPC 4 MKT 5 CLM 3 NAR 6 SUP 5" },
+    { "country": "India", "score": 71, "breakdown": "MIL 14 ECO 8 CYB 6 DIP 7 CIV 5 INF 7 MAR 5 SPC 5 MKT 5 CLM 4 NAR 3 SUP 3" },
+    { "country": "Brazil", "score": 44, "breakdown": "MIL 5 ECO 6 CYB 4 DIP 4 CIV 4 INF 4 MAR 3 SPC 2 MKT 3 CLM 4 NAR 3 SUP 2" }
+  ],
+  "finance_radar": {
+    "stockExchanges": 92,
+    "commodities": 24,
+    "cryptoPairs": 71,
+    "centralBanks": 23,
+    "compositeScore": 82,
+    "compositeSignals": [
+      { "label": "Liquidity", "value": 69 },
+      { "label": "Volatility", "value": 84 },
+      { "label": "Energy beta", "value": 93 },
+      { "label": "Shipping risk", "value": 91 },
+      { "label": "Sanctions drag", "value": 72 },
+      { "label": "Credit spread", "value": 64 },
+      { "label": "Crypto reflexivity", "value": 58 }
+    ]
+  },
+  "updated_at": "2026-03-28T05:15:00Z"
+}

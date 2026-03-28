@@ -37,3 +37,15 @@ export const getSitrep = async () => {
     const res = await fetch(`${BASE_URL}/sitrep`);
     return res.json();
 };
+
+export const getHeadlines = async () => {
+    const res = await fetch(`${BASE_URL}/feed/headlines`);
+    if (!res.ok) throw new Error("API error");
+    return res.json();
+};
+
+export const getMarketSnapshot = async () => {
+    const res = await fetch(`${BASE_URL}/feed/market-snapshot`);
+    if (!res.ok) throw new Error("API error");
+    return res.json();
+};

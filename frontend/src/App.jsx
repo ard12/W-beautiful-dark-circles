@@ -4,6 +4,7 @@ import WorldMonitorGlobe from "./components/WorldMonitorGlobe";
 import WorldMonitorMap from "./components/WorldMonitorMap";
 import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
 import { useSentinelState } from "./hooks/useSentinelState";
+import { useLandingData } from "./hooks/useLandingData";
 import {
   AI_INSIGHT_BRIEF,
   CHAT_BRIEFING_MODULES,
@@ -356,6 +357,28 @@ function LandingSurface({
   toggleLayer,
 }) {
   const clock = useHeaderClock();
+  const { headlines, marketSnapshot } = useLandingData();
+
+  const newsItems = headlines?.news || LIVE_NEWS_ITEMS;
+  const intelItems = headlines?.intel || LIVE_INTELLIGENCE_ITEMS;
+  const worldNewsItems = headlines?.world_news || WORLD_NEWS_ITEMS;
+
+  const metalsItems = marketSnapshot?.metals || METALS_AND_MATERIALS;
+  const energyItems = marketSnapshot?.energy || ENERGY_COMPLEX;
+  const equitiesItems = marketSnapshot?.equities || MARKETS_PANEL;
+  const stressItems = marketSnapshot?.macro_stress || MACRO_STRESS;
+
+  const forecastItems = headlines?.forecasts || FORECAST_ITEMS;
+  const intelFeedItems = headlines?.intel_feed || INTEL_FEED_ITEMS;
+  const regionalItems = headlines?.regional_news || REGIONAL_NEWS_PANELS;
+  const predictionsData = headlines?.predictions || PREDICTIONS_PANEL;
+  const postureItems = headlines?.strategic_posture || STRATEGIC_POSTURE;
+  const aiInsightData = headlines?.ai_insight || AI_INSIGHT_BRIEF;
+
+  const riskData = marketSnapshot?.strategic_risk || STRATEGIC_RISK;
+  const correlationItems = marketSnapshot?.cross_stream_correlation || CROSS_STREAM_CORRELATION;
+  const countryIntelItems = marketSnapshot?.country_intelligence || COUNTRY_INTELLIGENCE_INDEX;
+  const financeData = marketSnapshot?.finance_radar || FINANCE_RADAR;
 
   return (
     <div className="wm-shell wm-shell--homepage">
@@ -509,12 +532,12 @@ function LandingSurface({
             </div>
             <div className="wm-live-news-hero">
               <div className="wm-live-news-hero__caption">
-                <span>{LIVE_NEWS_ITEMS[0].headline}</span>
-                <strong>{LIVE_NEWS_ITEMS[0].source.toUpperCase()}</strong>
+                <span>{newsItems[0].headline}</span>
+                <strong>{newsItems[0].source.toUpperCase()}</strong>
               </div>
             </div>
             <div className="wm-live-intel-list">
-              {LIVE_INTELLIGENCE_ITEMS.map((item) => (
+              {intelItems.map((item) => (
                 <div key={item.headline} className="wm-live-intel-item">
                   <div>
                     <strong>{item.source}</strong>
@@ -545,8 +568,8 @@ function LandingSurface({
 
           <LandingPanel title="AI Insights" count="LIVE" className="wm-home-panel wm-home-panel--insights">
             <div className="wm-insights-card">
-              <div className="wm-insights-card__eyebrow">{AI_INSIGHT_BRIEF.title}</div>
-              <p>{AI_INSIGHT_BRIEF.text}</p>
+              <div className="wm-insights-card__eyebrow">{aiInsightData.title}</div>
+              <p>{aiInsightData.text}</p>
               <div className="wm-inline-note">
                 <strong>Incident</strong>
                 <span>
@@ -555,7 +578,7 @@ function LandingSurface({
               </div>
             </div>
             <div className="wm-posture-list">
-              {STRATEGIC_POSTURE.map((item) => (
+              {postureItems.map((item) => (
                 <div key={item.label} className="wm-posture-item">
                   <div className="wm-posture-item__header">
                     <strong>{item.label}</strong>
@@ -589,7 +612,7 @@ function LandingSurface({
               <em>90%</em>
             </div>
             <div className="wm-live-intel-list wm-live-intel-list--compact">
-              {FORECAST_ITEMS.map((item) => (
+              {forecastItems.map((item) => (
                 <div key={item.headline} className="wm-live-intel-item">
                   <div>
                     <strong>{item.channel}</strong>
@@ -606,7 +629,7 @@ function LandingSurface({
               Composite national instability scoring across military, economic, cyber, civil, infrastructure, maritime, narrative, and market signals.
             </div>
             <div className="wm-country-list">
-              {COUNTRY_INTELLIGENCE_INDEX.map((row) => (
+              {countryIntelItems.map((row) => (
                 <div key={row.country} className="wm-country-row">
                   <div className="wm-country-row__top">
                     <span>{row.country}</span>
@@ -625,21 +648,21 @@ function LandingSurface({
             <div className="wm-risk-gauge">
               <div className="wm-risk-gauge__ring">
                 <div>
-                  <strong>{STRATEGIC_RISK.score}</strong>
-                  <span>{STRATEGIC_RISK.band}</span>
+                  <strong>{riskData.score}</strong>
+                  <span>{riskData.band}</span>
                 </div>
               </div>
               <div className="wm-risk-gauge__trend">
                 <span>Trend</span>
-                <strong>{STRATEGIC_RISK.trend}</strong>
+                <strong>{riskData.trend}</strong>
               </div>
             </div>
             <div className="wm-cascade-bar">
               <span>Infrastructure cascade</span>
-              <strong>{STRATEGIC_RISK.infrastructureLinks} links</strong>
+              <strong>{riskData.infrastructureLinks} links</strong>
             </div>
             <div className="wm-mini-metric-list">
-              {STRATEGIC_RISK.composite.map((item) => (
+              {riskData.composite.map((item) => (
                 <div key={item.label} className="wm-mini-metric">
                   <span>{item.label}</span>
                   <strong>{item.value}</strong>
@@ -653,7 +676,7 @@ function LandingSurface({
               Military, economic, disaster, and escalation signals converging into a shared decision window.
             </div>
             <div className="wm-correlation-stack">
-              {CROSS_STREAM_CORRELATION.map((item) => (
+              {correlationItems.map((item) => (
                 <div key={item.title} className="wm-correlation-card">
                   <div className="wm-correlation-card__top">
                     <strong>{item.title}</strong>
@@ -668,27 +691,27 @@ function LandingSurface({
             </div>
           </LandingPanel>
 
-          <FeedPanel title="Intel Feed" count="LIVE" items={INTEL_FEED_ITEMS} />
+          <FeedPanel title="Intel Feed" count="LIVE" items={intelFeedItems} />
 
-          {REGIONAL_NEWS_PANELS.map((panel) => (
+          {regionalItems.map((panel) => (
             <FeedPanel key={panel.title} title={panel.title} count={panel.count} items={panel.items} />
           ))}
 
           <LandingPanel title="Predictions" count="2">
             <div className="wm-prediction-card">
-              <div className="wm-prediction-badge">{PREDICTIONS_PANEL.market}</div>
-              <p>{PREDICTIONS_PANEL.question}</p>
+              <div className="wm-prediction-badge">{predictionsData.market}</div>
+              <p>{predictionsData.question}</p>
               <div className="wm-prediction-meta">
-                <span>Vol: {PREDICTIONS_PANEL.volume}</span>
-                <span>Closes: {PREDICTIONS_PANEL.closeDate}</span>
-                <strong>{PREDICTIONS_PANEL.badge}</strong>
+                <span>Vol: {predictionsData.volume}</span>
+                <span>Closes: {predictionsData.closeDate}</span>
+                <strong>{predictionsData.badge}</strong>
               </div>
               <div className="wm-yes-no-bar">
-                <div className="wm-yes-no-bar__yes" style={{ width: `${PREDICTIONS_PANEL.yes}%` }}>
-                  Yes {PREDICTIONS_PANEL.yes}%
+                <div className="wm-yes-no-bar__yes" style={{ width: `${predictionsData.yes}%` }}>
+                  Yes {predictionsData.yes}%
                 </div>
-                <div className="wm-yes-no-bar__no" style={{ width: `${PREDICTIONS_PANEL.no}%` }}>
-                  No {PREDICTIONS_PANEL.no}%
+                <div className="wm-yes-no-bar__no" style={{ width: `${predictionsData.no}%` }}>
+                  No {predictionsData.no}%
                 </div>
               </div>
             </div>
@@ -696,7 +719,7 @@ function LandingSurface({
 
           <LandingPanel title="Metals & Materials" count="6">
             <div className="wm-commodity-grid">
-              {METALS_AND_MATERIALS.map((item) => (
+              {metalsItems.map((item) => (
                 <div key={item.name} className="wm-commodity-card">
                   <span>{item.name}</span>
                   <strong>{item.price}</strong>
@@ -709,7 +732,7 @@ function LandingSurface({
 
           <LandingPanel title="Energy Complex" count="LIVE">
             <div className="wm-energy-stack">
-              {ENERGY_COMPLEX.map((item) => (
+              {energyItems.map((item) => (
                 <div key={item.label} className="wm-energy-row">
                   <div>
                     <span>{item.label}</span>
@@ -723,7 +746,7 @@ function LandingSurface({
 
           <LandingPanel title="Markets" count="Watchlist">
             <div className="wm-market-list">
-              {MARKETS_PANEL.map((item) => (
+              {equitiesItems.map((item) => (
                 <div key={item.ticker} className="wm-market-row">
                   <div>
                     <strong>{item.name}</strong>
@@ -740,7 +763,7 @@ function LandingSurface({
 
           <LandingPanel title="Macro Stress" count="4">
             <div className="wm-mini-metric-list">
-              {MACRO_STRESS.map((item) => (
+              {stressItems.map((item) => (
                 <div key={item.label} className="wm-mini-metric">
                   <span>{item.label}</span>
                   <strong>{item.value}</strong>
@@ -752,18 +775,18 @@ function LandingSurface({
           <LandingPanel title="Finance Radar" count="7-signal composite">
             <div className="wm-radar-grid">
               <div className="wm-radar-summary">
-                <strong>{FINANCE_RADAR.compositeScore}</strong>
+                <strong>{financeData.compositeScore}</strong>
                 <span>Composite</span>
               </div>
               <div className="wm-radar-totals">
-                <div><strong>{FINANCE_RADAR.stockExchanges}</strong><span>Exchanges</span></div>
-                <div><strong>{FINANCE_RADAR.commodities}</strong><span>Commodities</span></div>
-                <div><strong>{FINANCE_RADAR.cryptoPairs}</strong><span>Crypto</span></div>
-                <div><strong>{FINANCE_RADAR.centralBanks}</strong><span>CBs</span></div>
+                <div><strong>{financeData.stockExchanges}</strong><span>Exchanges</span></div>
+                <div><strong>{financeData.commodities}</strong><span>Commodities</span></div>
+                <div><strong>{financeData.cryptoPairs}</strong><span>Crypto</span></div>
+                <div><strong>{financeData.centralBanks}</strong><span>CBs</span></div>
               </div>
             </div>
             <div className="wm-correlation-stack">
-              {FINANCE_RADAR.compositeSignals.map((item) => (
+              {financeData.compositeSignals.map((item) => (
                 <div key={item.label} className="wm-correlation-card">
                   <div className="wm-correlation-card__top">
                     <strong>{item.label}</strong>
@@ -777,7 +800,7 @@ function LandingSurface({
             </div>
           </LandingPanel>
 
-          <FeedPanel title="World News" count="LIVE" items={WORLD_NEWS_ITEMS} />
+          <FeedPanel title="World News" count="LIVE" items={worldNewsItems} />
         </section>
       </div>
 

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from models import WorldState, QueryResponse, SitrepOutput, ProjectionOutput
+from models import WorldState, QueryResponse, SitrepOutput, ProjectionOutput, HeadlinesResponse, MarketSnapshot
 from world_state import WorldStateManager
 from sitrep import generate_sitrep
 
@@ -63,3 +63,19 @@ def approve_recommendation(request: RecommendationApproveRequest):
 @app.get("/sitrep", response_model=SitrepOutput)
 async def sitrep():
     return await generate_sitrep(state_manager.get_state())
+
+@app.get("/feed/headlines", response_model=HeadlinesResponse)
+def get_headlines():
+    import json
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "landing_feed.json")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@app.get("/feed/market-snapshot", response_model=MarketSnapshot)
+def get_market_snapshot():
+    import json
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "market_snapshot.json")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
