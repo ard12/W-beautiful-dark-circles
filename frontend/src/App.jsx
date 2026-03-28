@@ -2,13 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import StrategicGlobe from "./components/StrategicGlobe";
 import WorldMonitorGlobe from "./components/WorldMonitorGlobe";
 import WorldMonitorMap from "./components/WorldMonitorMap";
-<<<<<<< HEAD
 import { AnimatedAIChat } from "@/components/ui/animated-ai-chat";
 import { useSentinelState } from "./hooks/useSentinelState";
 import { useLandingData } from "./hooks/useLandingData";
-=======
-import { getPromptPlaceholders, executePrompt } from "./api/client";
->>>>>>> origin/main
+import { getPromptPlaceholders, executePrompt, loginUser, logoutUser } from "./api/client";
 import {
   AI_INSIGHT_BRIEF,
   CHAT_BRIEFING_MODULES,
@@ -835,6 +832,25 @@ function LandingSurface({
 }
 
 function LoginSurface({ onLogin, onBack }) {
+  const [email, setEmail] = useState("commander@sentinel.mil");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await loginUser(email, password);
+      onLogin(data.token, data.user);
+    } catch (err) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#13294c_0%,#08111f_50%,#020617_100%)] px-6 py-10 text-white lg:px-8">
       <div className="mx-auto grid max-w-[1180px] gap-10 lg:grid-cols-[0.95fr_1.05fr]">
@@ -842,37 +858,50 @@ function LoginSurface({ onLogin, onBack }) {
           <p className="text-[0.68rem] uppercase tracking-[0.34em] text-cyan-300/80">Secure Entry</p>
           <h1 className="mt-4 text-4xl font-semibold text-white">Access SENTINEL</h1>
           <p className="mt-4 text-sm leading-7 text-slate-300">
-            A clean, premium login surface for judges and operators before entering the console.
+            Authenticated entry for operators and analysts. Use your credentials to access the strategic console.
           </p>
 
-          <div className="mt-8 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <input
               className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-4 text-sm text-white outline-none transition focus:border-cyan-300/40"
               placeholder="Operator email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
             />
             <input
               className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-4 text-sm text-white outline-none transition focus:border-cyan-300/40"
               placeholder="Access token"
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
-          </div>
+            {error && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-950/40 px-4 py-3 text-sm text-rose-300">
+                {error}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
+              >
+                {loading ? "Authenticating…" : "Continue to console"}
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="rounded-full border border-white/10 px-6 py-3 text-sm text-slate-200 transition hover:border-cyan-300/35"
+              >
+                Back
+              </button>
+            </div>
+          </form>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={onLogin}
-              className="rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-            >
-              Continue to console
-            </button>
-            <button
-              type="button"
-              onClick={onBack}
-              className="rounded-full border border-white/10 px-6 py-3 text-sm text-slate-200 transition hover:border-cyan-300/35"
-            >
-              Back
-            </button>
-          </div>
+          <p className="mt-6 text-xs text-slate-500">Demo: commander@sentinel.mil / sentinel2026</p>
         </div>
 
         <div className="grid gap-5">
@@ -1336,6 +1365,29 @@ function App() {
   const [selectedResponsePath, setSelectedResponsePath] = useState(RESPONSE_PATHS[1]);
   const [activeLayerIds, setActiveLayerIds] = useState(DEFAULT_ACTIVE_LAYER_IDS);
 
+  // Auth state
+  const [authToken, setAuthToken] = useState(() => sessionStorage.getItem("sentinel_token"));
+  const [authUser, setAuthUser] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("sentinel_user")); } catch { return null; }
+  });
+
+  function handleLogin(token, user) {
+    setAuthToken(token);
+    setAuthUser(user);
+    sessionStorage.setItem("sentinel_token", token);
+    sessionStorage.setItem("sentinel_user", JSON.stringify(user));
+    navigate("console");
+  }
+
+  function handleLogout() {
+    if (authToken) logoutUser(authToken).catch(() => {});
+    setAuthToken(null);
+    setAuthUser(null);
+    sessionStorage.removeItem("sentinel_token");
+    sessionStorage.removeItem("sentinel_user");
+    navigate("landing");
+  }
+
   useEffect(() => {
     const syncSurface = () => setSurface(getSurfaceFromHash());
     window.addEventListener("hashchange", syncSurface);
@@ -1446,7 +1498,7 @@ function App() {
   }
 
   if (surface === "login") {
-    return <LoginSurface onLogin={() => navigate("console")} onBack={() => navigate("landing")} />;
+    return <LoginSurface onLogin={handleLogin} onBack={() => navigate("landing")} />;
   }
 
   if (surface === "chat") {
