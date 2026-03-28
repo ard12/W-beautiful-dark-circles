@@ -185,12 +185,15 @@ def _build_world_state_from_incident(incident: IncidentInput) -> WorldState:
     threat = ThreatState(
         threat_id="T-INC-1",
         label=f"{incident.attack_type} on {incident.attacked_site}",
-        latitude=34.5261,
-        longitude=74.2612,
+        latitude=incident.latitude if incident.latitude is not None else 34.5261,
+        longitude=incident.longitude if incident.longitude is not None else 74.2612,
         severity=float(incident.severity),
         confidence=65.0,
         summary=incident.description,
         source_type="incident_report",
+        actor=incident.actor,
+        attack_type=incident.attack_type,
+        owner_country=incident.owner_country,
     )
 
     unit = UnitState(
@@ -232,6 +235,10 @@ async def execute_prompt(incident: IncidentInput):
         doctrine=_doctrine,
         area_briefing=_area_briefing,
     )
+
+    # Attach reasoning and persist so /state reflects the chat-driven incident
+    state.reasoning = reasoning
+    state_manager.state = state
 
     sitrep_out = await generate_sitrep(
         state,
