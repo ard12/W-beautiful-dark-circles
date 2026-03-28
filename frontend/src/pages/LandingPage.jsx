@@ -59,7 +59,7 @@ function HeroSection({ onEnter }) {
       {/* Subtle radial glow */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(34,211,238,0.06)_0%,transparent_60%)]" />
 
-      <Badge>AMD Slingshot 2026 · Build the Impossible</Badge>
+      <Badge>24-Hour Hackathon · Build the Impossible</Badge>
 
       <h1 className="mt-8 max-w-4xl text-5xl font-bold leading-[1.1] tracking-tight text-white md:text-7xl">
         One operational picture.
@@ -444,7 +444,7 @@ function TeamSection() {
   return (
     <section className="px-6 py-24">
       <div className="mx-auto max-w-4xl text-center">
-        <SectionEyebrow>Team Aimeblack</SectionEyebrow>
+        <SectionEyebrow>The Team</SectionEyebrow>
         <h2 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
           Three builders. 24 hours.
         </h2>
@@ -542,7 +542,7 @@ export default function LandingPage({ onNavigate }) {
 
       {/* Footer */}
       <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-slate-600">
-        SENTINEL · AMD Slingshot 2026 · Team Aimeblack · Built in 24 hours
+        SENTINEL · 24-Hour Hackathon · Built in 24 hours
       </footer>
     </div>
   );

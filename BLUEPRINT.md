@@ -9,7 +9,7 @@
 
 **One-line idea:** An AI-native mission intelligence co-pilot that fuses multi-source inputs into one operational picture, reasons about threats, recommends actions, and projects future outcomes.
 
-**Format:** 24-hour hackathon (AMD Slingshot 2026)  
+**Format:** 24-hour hackathon  
 **Team:** 3 active builders  
 **Primary user:** Commander / operator / analyst in a fast-moving operational environment  
 **Core promise:** Turn fragmented operational inputs into a single, explainable, actionable decision surface

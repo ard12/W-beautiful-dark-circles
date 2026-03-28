@@ -6,8 +6,8 @@ An AI-native mission intelligence co-pilot that fuses multi-source operational i
 
 | | |
 |---|---|
-| **Hackathon** | AMD Slingshot 2026 — *Build the Impossible* |
-| **Team** | Aimeblack — 3 builders, 24 hours |
+| **Hackathon** | 24-hour hackathon — *Build the Impossible* |
+| **Team** | 3 builders, 24 hours |
 | **Primary user** | Commander / operator / analyst |
 | **Core promise** | Fragmented inputs → one operational picture → explainable reasoning → projected outcome |
 | **Stack** | React + Vite + Tailwind · FastAPI + Pydantic · SQLite (auth) · Claude API |
