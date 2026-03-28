@@ -1340,7 +1340,7 @@ function LoginSurface({ onLogin, onBack }) {
   );
 }
 
-function ChatSurface({ onBack, onOpenConsole, prefilledIncident }) {
+function ChatSurface({ onBack, onOpenConsole, prefilledIncident, onPrefillConsumed }) {
   const [placeholders, setPlaceholders] = useState([]);
   const [answers, setAnswers] = useState({});
   const [currentStep, setCurrentStep] = useState(0);
@@ -1389,15 +1389,16 @@ function ChatSurface({ onBack, onOpenConsole, prefilledIncident }) {
     if (lastPrefillKeyRef.current === prefilledIncident.key) return;
 
     const prefilledAnswers = buildChatPrefill(placeholders, prefilledIncident.incident);
+    const firstPlaceholder = placeholders[0];
     setAnswers(prefilledAnswers);
-    setCurrentStep(placeholders.length);
-    setDraft("");
+    setCurrentStep(0);
+    setDraft(firstPlaceholder ? String(prefilledAnswers[firstPlaceholder.key] ?? "") : "");
     setReport(null);
     setError(null);
     setMessages([
       {
         role: "assistant",
-        text: "Monitor handoff received. I prefilled the incident package from the selected hotspot, so you can generate the report immediately or adjust the details first.",
+        text: "Monitor handoff received. I loaded the incident package from the selected hotspot into the prompt flow.",
       },
       {
         role: "assistant",
@@ -1405,11 +1406,13 @@ function ChatSurface({ onBack, onOpenConsole, prefilledIncident }) {
       },
       {
         role: "assistant",
-        text: "All placeholders filled. Click \"Generate Report\" to run AI analysis on this incident.",
+        text: "Review or edit each response. The current value is prefilled in the input so the chatbot still takes your changes normally.",
       },
+      ...(firstPlaceholder ? [{ role: "assistant", text: firstPlaceholder.question }] : []),
     ]);
     lastPrefillKeyRef.current = prefilledIncident.key;
-  }, [prefilledIncident, placeholders]);
+    onPrefillConsumed?.();
+  }, [prefilledIncident, placeholders, onPrefillConsumed]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -1418,6 +1421,20 @@ function ChatSurface({ onBack, onOpenConsole, prefilledIncident }) {
 
   const currentPlaceholder = placeholders[currentStep] || null;
   const allFilled = placeholders.length > 0 && currentStep >= placeholders.length;
+  const readyToGenerate = placeholders.length > 0
+    && placeholders.every((placeholder) => {
+      const value = answers[placeholder.key];
+      return value !== undefined && value !== null && String(value).trim() !== "";
+    });
+
+  useEffect(() => {
+    if (!currentPlaceholder) {
+      setDraft("");
+      return;
+    }
+    const currentValue = answers[currentPlaceholder.key];
+    setDraft(currentValue === undefined || currentValue === null ? "" : String(currentValue));
+  }, [answers, currentPlaceholder]);
 
   function handleSubmitAnswer(value) {
     if (!value.trim() || !currentPlaceholder) return;
@@ -1608,7 +1625,7 @@ function ChatSurface({ onBack, onOpenConsole, prefilledIncident }) {
             )}
 
             {/* Generate button */}
-            {allFilled && !report && !isLoading && (
+            {readyToGenerate && !report && !isLoading && (
               <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
                 <button
                   type="button"
@@ -1855,6 +1872,7 @@ function App() {
   const [activeLayerIds, setActiveLayerIds] = useState(DEFAULT_ACTIVE_LAYER_IDS);
   const [selectedMonitorHotspot, setSelectedMonitorHotspot] = useState(MONITOR_HOTSPOTS[0]);
   const [monitorHandoff, setMonitorHandoff] = useState(null);
+  const [chatPrefill, setChatPrefill] = useState(null);
 
   // Auth state
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem("sentinel_token"));
@@ -1944,6 +1962,11 @@ function App() {
     setSurface(nextSurface);
   }, []);
 
+  const openChat = useCallback((prefill = null) => {
+    setChatPrefill(prefill);
+    navigate("chat");
+  }, [navigate]);
+
   const toggleLayer = useCallback((layerId) => {
     setActiveLayerIds((current) =>
       current.includes(layerId) ? current.filter((value) => value !== layerId) : [...current, layerId],
@@ -1952,19 +1975,25 @@ function App() {
 
   const applyMonitorHandoff = useCallback((hotspot, destination) => {
     const nextIncident = hotspotToIncident(hotspot);
-    setSelectedMonitorHotspot(hotspot);
-    setIncident(nextIncident);
-    setSelectedResponsePath(RESPONSE_PATHS[1]);
-    setMonitorHandoff({
+    const nextHandoff = {
       key: `${hotspot.id}-${Date.now()}`,
       hotspot,
       incident: nextIncident,
-    });
+    };
+    setSelectedMonitorHotspot(hotspot);
+    setIncident(nextIncident);
+    setSelectedResponsePath(RESPONSE_PATHS[1]);
+    setMonitorHandoff(nextHandoff);
+    if (destination === "chat") {
+      openChat(nextHandoff);
+      return;
+    }
     navigate(destination);
-  }, [navigate]);
+  }, [navigate, openChat]);
 
   const clearMonitorHandoff = useCallback(() => {
     setMonitorHandoff(null);
+    setChatPrefill(null);
     fetchState();
   }, [fetchState]);
 
@@ -1988,13 +2017,19 @@ function App() {
 
   const handleConsoleReset = useCallback(() => {
     setMonitorHandoff(null);
+    setChatPrefill(null);
     handleReset();
   }, [handleReset]);
 
   const handleConsoleAdvance = useCallback(() => {
     setMonitorHandoff(null);
+    setChatPrefill(null);
     handleAdvance();
   }, [handleAdvance]);
+
+  const handleOpenChatFromConsole = useCallback(() => {
+    openChat(monitorHandoff || null);
+  }, [monitorHandoff, openChat]);
 
   const consoleModel = useMemo(() => {
     const base = buildConsoleModel(incident, selectedResponsePath);
@@ -2115,7 +2150,8 @@ function App() {
       <ChatSurface
         onBack={() => navigate("landing")}
         onOpenConsole={() => navigate("console")}
-        prefilledIncident={monitorHandoff}
+        prefilledIncident={chatPrefill}
+        onPrefillConsumed={() => setChatPrefill(null)}
       />
     );
   }
@@ -2126,7 +2162,7 @@ function App() {
         onBackToLanding={() => navigate("landing")}
         onEnterConsole={() => navigate("console")}
         onOpenLogin={() => navigate("login")}
-        onOpenAssistant={() => navigate("chat")}
+        onOpenAssistant={() => openChat(null)}
         onHotspotConsole={(hotspot) => applyMonitorHandoff(hotspot, "console")}
         onHotspotAssistant={(hotspot) => applyMonitorHandoff(hotspot, "chat")}
         incident={incident}
@@ -2197,7 +2233,7 @@ function App() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("chat")}
+              onClick={handleOpenChatFromConsole}
               className="rounded-full border border-cyan-400/20 bg-slate-900 px-5 py-2 text-sm text-cyan-100 transition hover:bg-slate-800"
             >
               AI Assistant
