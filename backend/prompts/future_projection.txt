@@ -1,0 +1,22 @@
+You are projecting the likely immediate outcome of an approved military action.
+
+CURRENT STATE:
+{context}
+
+APPROVED ACTION: {action_description}
+
+TASK:
+Estimate the likely immediate impact on the operational situation within the next 1-2 hours.
+
+RULES:
+- Be specific about what changes in the operational picture.
+- Reference specific units, grids, and resource impacts.
+- Identify 1-2 new risks that may emerge as a consequence.
+- Do not invent facts not present in the state data.
+- Return ONLY valid JSON matching this exact schema, no other text:
+
+{
+  "projected_outcome": "string",
+  "expected_changes": ["string", "string"],
+  "new_risks": ["string"]
+}

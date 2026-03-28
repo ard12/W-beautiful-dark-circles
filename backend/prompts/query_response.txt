@@ -1,0 +1,19 @@
+You are answering a commander's question using only the provided operational state.
+
+CURRENT STATE:
+{context}
+
+COMMANDER'S QUESTION: {question}
+
+RULES:
+- Do not invent facts not present in the state data.
+- Reference specific units, positions, and resource levels.
+- Keep the answer concise (2-4 sentences).
+- Include 2-3 supporting data points.
+- Return ONLY valid JSON matching this exact schema, no other text:
+
+{
+  "answer": "string",
+  "supporting_points": ["string", "string"],
+  "confidence": 0.0
+}

@@ -96,6 +96,7 @@ class WorldState(BaseModel):
     approved_action_ids: List[str] = []
     event_log: List[str] = []
 
+
 class HeadlineItem(BaseModel):
     source: str
     tags: List[str]
@@ -210,3 +211,20 @@ class MarketSnapshot(BaseModel):
     country_intelligence: Optional[List[CountryIntelItem]] = None
     finance_radar: Optional[FinanceRadarData] = None
     updated_at: str
+
+
+class IncidentInput(BaseModel):
+    attacked_site: str
+    location: str
+    owner_country: str
+    actor: str
+    attack_type: str
+    severity: int = Field(ge=0, le=100)
+    description: str
+
+
+class FullReportOutput(BaseModel):
+    reasoning: ReasoningOutput
+    sitrep: SitrepOutput
+    scores: dict
+
