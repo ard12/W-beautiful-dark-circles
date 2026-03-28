@@ -65,3 +65,34 @@ export const executePrompt = async (incidentData) => {
     return res.json();
 };
 
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export const loginUser = async (email, password) => {
+    const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Login failed");
+    }
+    return res.json();
+};
+
+export const logoutUser = async (token) => {
+    await fetch(`${BASE_URL}/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+};
+
+export const getCurrentUser = async (token) => {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Not authenticated");
+    return res.json();
+};

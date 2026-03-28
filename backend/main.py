@@ -11,6 +11,7 @@ from world_state import WorldStateManager
 from sitrep import generate_sitrep
 from ai_reasoning import answer_query, project_future, load_doctrine, load_area_briefing, assess_threat
 from threat_scorer import compute_scorecard
+from auth import router as auth_router, init_db
 
 app = FastAPI()
 
@@ -24,6 +25,10 @@ app.add_middleware(
 
 state_manager = WorldStateManager()
 state_manager.initialize()
+
+# Initialize SQLite auth database and mount auth routes
+init_db()
+app.include_router(auth_router)
 
 # Pre-load context files at startup
 _doctrine = load_doctrine()
