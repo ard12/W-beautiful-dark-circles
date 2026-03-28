@@ -612,7 +612,7 @@ export default function InteractiveMap({
           </div>
         </OverlayCard>
 
-        <div className="theatre-ui-fade pointer-events-auto absolute left-1/2 top-5 z-[900] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/8 bg-slate-950/42 px-3 py-2 shadow-[0_14px_32px_rgba(2,6,23,0.24)] backdrop-blur-xl">
+        <div className="theatre-ui-fade theatre-ui-fade--center pointer-events-auto absolute left-1/2 top-5 z-[900] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/8 bg-slate-950/42 px-3 py-2 shadow-[0_14px_32px_rgba(2,6,23,0.24)] backdrop-blur-xl">
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
             <Search className="h-4 w-4 text-slate-400" />
             <Input
@@ -707,7 +707,7 @@ export default function InteractiveMap({
         </OverlayCard>
 
         {(phaseLabel || onAdvancePhase) ? (
-          <div className="theatre-ui-fade pointer-events-auto absolute bottom-5 left-1/2 z-[900] flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/8 bg-slate-950/42 px-3 py-2 shadow-[0_14px_32px_rgba(2,6,23,0.24)] backdrop-blur-xl">
+          <div className="theatre-ui-fade theatre-ui-fade--center pointer-events-auto absolute bottom-5 left-1/2 z-[900] flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/8 bg-slate-950/42 px-3 py-2 shadow-[0_14px_32px_rgba(2,6,23,0.24)] backdrop-blur-xl">
             <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[0.64rem] uppercase tracking-[0.22em] text-slate-300">
               {phaseLabel || "Live theater"}
             </div>
