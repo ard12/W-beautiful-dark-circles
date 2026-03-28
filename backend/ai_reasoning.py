@@ -101,6 +101,294 @@ AREA BRIEFING:
 {area_briefing[:500]}"""
 
 
+def _unique_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def _clip_score(value: float) -> int:
+    return max(0, min(100, round(value)))
+
+
+def _matches_token_boundary(haystack: str, token: str) -> bool:
+    normalized = (token or "").strip()
+    if len(normalized) < 3:
+        return False
+    return re.search(rf"\b{re.escape(normalized)}\b", haystack, flags=re.IGNORECASE) is not None
+
+
+def _collect_matching_threat_ids(state: WorldState, text: str) -> list[str]:
+    haystack = text or ""
+    matched = [
+        threat.threat_id
+        for threat in state.threats
+        if any(
+            _matches_token_boundary(haystack, token)
+            for token in [
+                threat.threat_id,
+                threat.label,
+                threat.actor or "",
+                threat.attack_type or "",
+                threat.owner_country or "",
+                threat.source_type or "",
+            ]
+        )
+    ]
+    if matched:
+        return _unique_preserving_order(matched)
+    return []
+
+
+def _collect_matching_unit_ids(state: WorldState, text: str) -> list[str]:
+    haystack = text or ""
+    matched = [
+        unit.unit_id
+        for unit in state.units
+        if any(
+            _matches_token_boundary(haystack, token)
+            for token in [unit.unit_id, unit.name, unit.role, unit.grid_ref or ""]
+        )
+    ]
+    if matched:
+        return _unique_preserving_order(matched)
+    return []
+
+
+def _collect_relevant_event_log(state: WorldState, text: str, threat_ids: list[str], unit_ids: list[str]) -> list[str]:
+    recent_events = state.event_log[-5:]
+    if not recent_events:
+        return []
+
+    haystack = text.lower()
+    threat_refs = {
+        threat.threat_id: threat
+        for threat in state.threats
+    }
+    unit_refs = {
+        unit.unit_id: unit
+        for unit in state.units
+    }
+
+    keywords = [
+        *threat_ids,
+        *unit_ids,
+        *[threat_refs[threat_id].label for threat_id in threat_ids if threat_id in threat_refs],
+        *[unit_refs[unit_id].name for unit_id in unit_ids if unit_id in unit_refs],
+    ]
+
+    matched_events = [
+        event
+        for event in recent_events
+        if any(keyword and keyword.lower() in event.lower() for keyword in keywords) or event.lower() in haystack
+    ]
+    if matched_events:
+        return _unique_preserving_order(matched_events)[:3]
+    return []
+
+
+def _build_confidence_drivers(state: WorldState) -> list[dict]:
+    drivers: list[dict] = []
+    recent_events = state.event_log[-5:]
+
+    if state.threats:
+        highest_conf = max(state.threats, key=lambda threat: threat.confidence)
+        drivers.append({
+            "label": "Threat-source confidence",
+            "score": _clip_score(highest_conf.confidence),
+            "reason": f"{highest_conf.label} is tracked at {highest_conf.confidence:.0f}% confidence via {highest_conf.source_type}.",
+            "impact": "supports" if highest_conf.confidence >= 70 else "limits",
+        })
+
+        unique_sources = len({threat.source_type for threat in state.threats})
+        convergence_score = _clip_score(32 + unique_sources * 20 + min(len(state.threats), 3) * 12)
+        drivers.append({
+            "label": "Signal convergence",
+            "score": convergence_score,
+            "reason": f"{len(state.threats)} active threat line(s) across {unique_sources} source stream(s) are informing the assessment.",
+            "impact": "supports" if unique_sources > 1 or len(state.threats) > 1 else "limits",
+        })
+    else:
+        drivers.append({
+            "label": "Threat-source confidence",
+            "score": 28,
+            "reason": "No active threats are currently confirmed in the state snapshot.",
+            "impact": "limits",
+        })
+
+    drivers.append({
+        "label": "Event recency",
+        "score": _clip_score(35 + len(recent_events) * 12),
+        "reason": recent_events[-1] if recent_events else "No recent events have been logged.",
+        "impact": "supports" if recent_events else "limits",
+    })
+
+    telemetry_score = _clip_score(sum(
+        (unit.resources.fuel + unit.resources.ammo + unit.resources.medical) / 3
+        for unit in state.units
+    ) / len(state.units)) if state.units else 0
+    drivers.append({
+        "label": "Unit telemetry coverage",
+        "score": telemetry_score,
+        "reason": f"{len(state.units)} unit(s) are reporting status and resource telemetry into the model context.",
+        "impact": "supports" if telemetry_score >= 65 else "limits",
+    })
+
+    return drivers[:4]
+
+
+def _merge_confidence_drivers(existing: list, derived: list[dict]) -> list[dict]:
+    merged: list[dict] = []
+    seen_labels: set[str] = set()
+    for driver in [*(existing or []), *derived]:
+        label = driver.label if hasattr(driver, "label") else driver.get("label")
+        if not label or label in seen_labels:
+            continue
+        seen_labels.add(label)
+        merged.append(driver if isinstance(driver, dict) else driver.model_dump())
+    return merged
+
+
+def _merge_provenance_lists(*value_sets: list[str]) -> list[str]:
+    merged: list[str] = []
+    for values in value_sets:
+        merged.extend(values or [])
+    return _unique_preserving_order(merged)
+
+
+def _collect_recommendation_provenance(recommendations: list[Recommendation]) -> dict:
+    return {
+        "based_on_threat_ids": _merge_provenance_lists(*[
+            recommendation.based_on_threat_ids for recommendation in recommendations
+        ]),
+        "based_on_unit_ids": _merge_provenance_lists(*[
+            recommendation.based_on_unit_ids for recommendation in recommendations
+        ]),
+        "based_on_event_log": _merge_provenance_lists(*[
+            recommendation.based_on_event_log for recommendation in recommendations
+        ])[:3],
+        "confidence_drivers": _merge_confidence_drivers(
+            [],
+            [
+                driver
+                for recommendation in recommendations
+                for driver in recommendation.confidence_drivers
+            ],
+        ),
+    }
+
+
+def _best_effort_enrich(model, state: WorldState, text: str):
+    try:
+        return _enrich_with_provenance(model, state, text)
+    except Exception as exc:
+        logger.warning("Provenance enrichment failed for %s: %s", model.__class__.__name__, exc)
+        return model
+
+
+def _enrich_with_provenance(model, state: WorldState, text: str):
+    threat_ids = _collect_matching_threat_ids(state, text)
+    unit_ids = _collect_matching_unit_ids(state, text)
+    event_log = _collect_relevant_event_log(state, text, threat_ids, unit_ids)
+    payload = {
+        **model.model_dump(),
+        "based_on_threat_ids": _unique_preserving_order([
+            *(getattr(model, "based_on_threat_ids", []) or []),
+            *threat_ids,
+        ]),
+        "based_on_unit_ids": _unique_preserving_order([
+            *(getattr(model, "based_on_unit_ids", []) or []),
+            *unit_ids,
+        ]),
+        "based_on_event_log": _unique_preserving_order([
+            *(getattr(model, "based_on_event_log", []) or []),
+            *event_log,
+        ])[:3],
+        "confidence_drivers": _merge_confidence_drivers(
+            getattr(model, "confidence_drivers", []) or [],
+            _build_confidence_drivers(state),
+        ),
+    }
+    return model.__class__.model_validate(payload)
+
+
+def enrich_reasoning_output(output: ReasoningOutput, state: WorldState) -> ReasoningOutput:
+    enriched_recommendations = [
+        _best_effort_enrich(
+            recommendation,
+            state,
+            " ".join(filter(None, [recommendation.action, recommendation.rationale])),
+        )
+        for recommendation in output.recommendations
+    ]
+
+    reasoning_text = " ".join(filter(None, [
+        output.assessment_summary,
+        output.projected_outcome,
+        *output.key_risks,
+        *output.assumptions,
+        *[recommendation.action for recommendation in enriched_recommendations],
+        *[recommendation.rationale for recommendation in enriched_recommendations],
+    ]))
+
+    enriched_output = _best_effort_enrich(
+        output.model_copy(update={"recommendations": enriched_recommendations}),
+        state,
+        reasoning_text,
+    )
+    recommendation_provenance = _collect_recommendation_provenance(enriched_recommendations)
+    return ReasoningOutput.model_validate({
+        **enriched_output.model_dump(),
+        "based_on_threat_ids": _merge_provenance_lists(
+            enriched_output.based_on_threat_ids,
+            recommendation_provenance["based_on_threat_ids"],
+        ),
+        "based_on_unit_ids": _merge_provenance_lists(
+            enriched_output.based_on_unit_ids,
+            recommendation_provenance["based_on_unit_ids"],
+        ),
+        "based_on_event_log": _merge_provenance_lists(
+            enriched_output.based_on_event_log,
+            recommendation_provenance["based_on_event_log"],
+        )[:3],
+        "confidence_drivers": _merge_confidence_drivers(
+            enriched_output.confidence_drivers,
+            recommendation_provenance["confidence_drivers"],
+        ),
+    })
+
+
+def enrich_query_response(output: QueryResponse, state: WorldState) -> QueryResponse:
+    return _best_effort_enrich(output, state, " ".join([output.answer, *output.supporting_points]))
+
+
+def enrich_projection_output(output: ProjectionOutput, state: WorldState, action_description: str = "") -> ProjectionOutput:
+    return _best_effort_enrich(
+        output,
+        state,
+        " ".join([action_description, output.projected_outcome, *output.expected_changes, *output.new_risks]),
+    )
+
+
+def enrich_sitrep_output(output, state: WorldState):
+    return _best_effort_enrich(
+        output,
+        state,
+        " ".join([
+            output.situation,
+            output.threats,
+            output.friendly_status,
+            output.recommended_action,
+            output.projected_outlook,
+        ]),
+    )
+
+
 # ---------------------------------------------------------------------------
 # LLM caller
 # ---------------------------------------------------------------------------
@@ -161,7 +449,7 @@ async def assess_threat(
         fallback = FALLBACK_REASONING.get(("alpha", state.current_phase_index))
         if fallback:
             logger.info(f"FALLBACK_MODE: returning pre-authored reasoning for phase {state.current_phase_index}")
-            return fallback
+            return enrich_reasoning_output(fallback, state)
 
     try:
         context = build_ai_context(state, doctrine, area_briefing)
@@ -174,21 +462,21 @@ async def assess_threat(
         )
 
         # Validate with Pydantic
-        return ReasoningOutput.model_validate(data)
+        return enrich_reasoning_output(ReasoningOutput.model_validate(data), state)
 
     except Exception as e:
         logger.warning(f"AI assess_threat failed: {e}. Using fallback.")
         fallback = FALLBACK_REASONING.get(("alpha", state.current_phase_index))
         if fallback:
-            return fallback
+            return enrich_reasoning_output(fallback, state)
         # Ultimate fallback
-        return ReasoningOutput(
+        return enrich_reasoning_output(ReasoningOutput(
             assessment_summary="Situation assessed. AI analysis temporarily unavailable — using cached assessment.",
             key_risks=["AI reasoning layer offline — manual assessment recommended"],
             recommendations=[],
             assumptions=["Cached data may not reflect latest operational changes"],
             projected_outcome="Situation requires manual commander assessment.",
-        )
+        ), state)
 
 
 async def answer_query(
@@ -211,7 +499,7 @@ async def answer_query(
         fallback = get_fallback_query(question, state.current_phase_index)
         if fallback:
             logger.info(f"FALLBACK_MODE: returning pre-authored query response")
-            return fallback
+            return enrich_query_response(fallback, state)
 
     try:
         context = build_ai_context(state, doctrine, area_briefing)
@@ -223,18 +511,18 @@ async def answer_query(
             user_prompt=user_prompt,
         )
 
-        return QueryResponse.model_validate(data)
+        return enrich_query_response(QueryResponse.model_validate(data), state)
 
     except Exception as e:
         logger.warning(f"AI answer_query failed: {e}. Using fallback.")
         fallback = get_fallback_query(question, state.current_phase_index)
         if fallback:
-            return fallback
-        return QueryResponse(
+            return enrich_query_response(fallback, state)
+        return enrich_query_response(QueryResponse(
             answer="AI query service temporarily unavailable. Please refer to the operational state display for current information.",
             supporting_points=["System is using cached data", "Live AI analysis will resume shortly"],
             confidence=0.3,
-        )
+        ), state)
 
 
 async def project_future(
@@ -254,7 +542,7 @@ async def project_future(
         fallback = FALLBACK_PROJECTIONS.get(("alpha", state.current_phase_index))
         if fallback:
             logger.info(f"FALLBACK_MODE: returning pre-authored projection")
-            return fallback
+            return enrich_projection_output(fallback, state, action_description)
 
     try:
         context = build_ai_context(state, doctrine, load_area_briefing())
@@ -266,15 +554,15 @@ async def project_future(
             user_prompt=user_prompt,
         )
 
-        return ProjectionOutput.model_validate(data)
+        return enrich_projection_output(ProjectionOutput.model_validate(data), state, action_description)
 
     except Exception as e:
         logger.warning(f"AI project_future failed: {e}. Using fallback.")
         fallback = FALLBACK_PROJECTIONS.get(("alpha", state.current_phase_index))
         if fallback:
-            return fallback
-        return ProjectionOutput(
+            return enrich_projection_output(fallback, state, action_description)
+        return enrich_projection_output(ProjectionOutput(
             projected_outcome="Projection unavailable — AI analysis offline. Manual assessment recommended.",
             expected_changes=["Action recorded in operational log"],
             new_risks=["Automated projection temporarily unavailable"],
-        )
+        ), state, action_description)

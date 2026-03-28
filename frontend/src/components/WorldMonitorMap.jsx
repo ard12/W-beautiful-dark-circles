@@ -180,10 +180,13 @@ const GENERATED_LAYER_DATA = MAP_LAYER_ITEMS.reduce((accumulator, layer, index) 
 
 function buildDynamicPoints(incidentPoint, markers) {
   const dynamic = markers.map((marker) => ({
+    id: marker.id,
+    label: marker.label,
     position: [marker.lon, marker.lat],
-    fillColor: [96, 165, 250],
-    radius: 7,
+    fillColor: marker.hotspot ? [251, 113, 133] : [96, 165, 250],
+    radius: marker.hotspot ? 9 : 7,
     category: "dynamic-marker",
+    hotspot: marker.hotspot,
   }));
 
   if (incidentPoint) {
@@ -199,7 +202,7 @@ function buildDynamicPoints(incidentPoint, markers) {
   return dynamic;
 }
 
-function createDeckLayers(incidentPoint, markers, activeLayerIds) {
+function createDeckLayers(incidentPoint, markers, activeLayerIds, onMarkerClick) {
   const dynamicPoints = buildDynamicPoints(incidentPoint, markers);
 
   const layers = activeLayerIds.flatMap((layerId) => {
@@ -271,6 +274,7 @@ function createDeckLayers(incidentPoint, markers, activeLayerIds) {
       new ScatterplotLayer({
         id: "dynamic-points",
         data: dynamicPoints,
+        pickable: true,
         getPosition: (datum) => datum.position,
         getFillColor: (datum) => datum.fillColor,
         getRadius: (datum) => datum.radius * 9000,
@@ -279,6 +283,11 @@ function createDeckLayers(incidentPoint, markers, activeLayerIds) {
         stroked: true,
         opacity: 0.95,
         radiusUnits: "meters",
+        onClick: (info) => {
+          if (info.object?.hotspot) {
+            onMarkerClick?.(info.object.hotspot);
+          }
+        },
       }),
     );
   }
@@ -286,15 +295,15 @@ function createDeckLayers(incidentPoint, markers, activeLayerIds) {
   return layers;
 }
 
-export default function WorldMonitorMap({ incidentPoint, markers = [], activeLayerIds = [] }) {
+export default function WorldMonitorMap({ incidentPoint, markers = [], activeLayerIds = [], onMarkerClick }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const overlayRef = useRef(null);
 
   const activeCount = activeLayerIds.length;
   const liveLayers = useMemo(
-    () => createDeckLayers(incidentPoint, markers, activeLayerIds),
-    [incidentPoint, markers, activeLayerIds],
+    () => createDeckLayers(incidentPoint, markers, activeLayerIds, onMarkerClick),
+    [incidentPoint, markers, activeLayerIds, onMarkerClick],
   );
 
   useEffect(() => {

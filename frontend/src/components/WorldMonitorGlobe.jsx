@@ -8,6 +8,8 @@ function buildPointData(incidentPoint, markers) {
     color: marker.color || "#44ff88",
     radius: 0.2 * (marker.scale || 1),
     altitude: 0.08,
+    label: marker.label,
+    marker,
   }));
 
   if (incidentPoint) {
@@ -33,7 +35,7 @@ function buildArcData(arcs) {
   }));
 }
 
-export default function WorldMonitorGlobe({ incidentPoint, markers = [], arcs = [] }) {
+export default function WorldMonitorGlobe({ incidentPoint, markers = [], arcs = [], onMarkerClick }) {
   const containerRef = useRef(null);
   const globeRef = useRef(null);
 
@@ -52,10 +54,16 @@ export default function WorldMonitorGlobe({ incidentPoint, markers = [], arcs = 
       .showAtmosphere(true)
       .atmosphereColor("#4466cc")
       .atmosphereAltitude(0.18)
-      .pointsMerge(true)
+      .pointsMerge(false)
       .pointAltitude("altitude")
       .pointRadius("radius")
       .pointColor("color")
+      .pointLabel((datum) => datum.label || "")
+      .onPointClick((datum) => {
+        if (datum?.marker?.hotspot) {
+          onMarkerClick?.(datum.marker.hotspot);
+        }
+      })
       .arcColor((d) => d.color)
       .arcAltitude(0.2)
       .arcStroke(0.4)
@@ -98,7 +106,7 @@ export default function WorldMonitorGlobe({ incidentPoint, markers = [], arcs = 
       container.innerHTML = "";
       globeRef.current = null;
     };
-  }, []);
+  }, [onMarkerClick]);
 
   useEffect(() => {
     const globe = globeRef.current?.instance;

@@ -8,7 +8,7 @@ CURRENT STATE:
 TASK:
 1. Assess the current threat posture in 2-3 sentences.
 2. Identify 2-3 key operational risks.
-3. Recommend 1-2 prioritized actions with rationale, expected effectiveness (0-1), and resource cost (0-1). Each action needs a unique action_id like "A-1", "A-2".
+3. Recommend 1-2 prioritized actions with rationale, expected effectiveness (0-1), and resource cost (0-1).
 4. State 1-2 key assumptions your assessment depends on.
 5. Project the likely short-term outcome if recommendations are followed.
 

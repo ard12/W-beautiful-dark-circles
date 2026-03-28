@@ -112,12 +112,20 @@ export const LIVE_INTELLIGENCE_ITEMS = [
 export const WEBCAM_TABS = ["Iran attacks", "All", "Mideast", "Europe", "Americas", "Asia", "Space"];
 
 export const WEBCAM_TILES = [
-  "Tehran",
-  "Tel Aviv",
-  "Jerusalem",
-  "Middle East",
-  "Dubai",
-  "Space",
+  {
+    id: "tehran",
+    label: "Tehran",
+    embedUrl: "https://www.youtube.com/embed/-zGuR1qVKrU",
+  },
+  {
+    id: "tel-aviv",
+    label: "Tel Aviv",
+    embedUrl: "https://www.youtube.com/embed/gmtlJ_m2r5A",
+  },
+  { id: "jerusalem", label: "Jerusalem" },
+  { id: "middle-east", label: "Middle East" },
+  { id: "dubai", label: "Dubai" },
+  { id: "space", label: "Space" },
 ];
 
 export const AI_INSIGHT_BRIEF = {
